@@ -1,0 +1,114 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Profile {
+  id             String          @id @db.Uuid
+  fullName       String?
+  avatarUrl      String?
+  updatedAt      DateTime        @updatedAt
+  socialAccounts SocialAccount[]
+  adAccounts     AdAccount[]
+  posts          Post[]
+  leads          Lead[]
+
+  @@map("profiles")
+}
+
+model SocialAccount {
+  id                    String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId                String    @db.Uuid
+  platform              String    
+  platformAccountId     String
+  accountName           String
+  encryptedAccessToken  String
+  encryptedRefreshToken String?
+  tokenExpiresAt        DateTime?
+  userRole              String    @default("employee")
+  createdAt             DateTime  @default(now())
+
+  profile Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, platform, platformAccountId])
+  @@map("social_accounts")
+}
+
+model AdAccount {
+  id                    String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId                String       @db.Uuid
+  platform              String   
+  adAccountId           String
+  accountName           String
+  encryptedAccessToken  String
+  encryptedRefreshToken String?
+  userRole              String       @default("employee")
+  createdAt             DateTime     @default(now())
+  campaigns             AdCampaign[]
+
+  profile Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, platform, adAccountId])
+  @@map("ad_accounts")
+}
+
+model Post {
+  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId          String    @db.Uuid
+  content         String?
+  mediaUrls       String[]
+  platforms       String[]
+  socialAccountIds String[]  @default([])
+  status          String    @default("draft")
+  scheduledAt     DateTime?
+  publishedAt     DateTime?
+  platformPostIds Json      @default("{}")
+  errorLogs       String?
+  createdAt       DateTime  @default(now())
+
+  profile Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("posts")
+}
+
+model AdCampaign {
+  id              String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  adAccountId     String   @db.Uuid
+  campaignId      String   @unique
+  name            String
+  budget          Float
+  spend           Float    @default(0)
+  status          String   @default("PAUSED")
+  targetLocation  String?  @default("Worldwide")
+  targetAgeMin    Int?     @default(18)
+  targetAgeMax    Int?     @default(65)
+  targetGender    String?  @default("ALL")
+  targetInterests String[] @default([])
+  createdAt       DateTime @default(now())
+
+  adAccount AdAccount @relation(fields: [adAccountId], references: [id], onDelete: Cascade)
+
+  @@map("ad_campaigns")
+}
+
+model Lead {
+  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId    String   @db.Uuid
+  name      String
+  email     String
+  phone     String?
+  platform  String   @default("facebook")
+  formName  String?  @default("Instant Lead Form")
+  status    String   @default("NEW") // NEW, CONTACTED, CONVERTED
+  notes     String?
+  createdAt DateTime @default(now())
+
+  profile Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("leads")
+}
