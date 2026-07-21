@@ -17,6 +17,7 @@ model Profile {
   adAccounts     AdAccount[]
   posts          Post[]
   leads          Lead[]
+  teamMembers    TeamMember[]
 
   @@map("profiles")
 }
@@ -111,4 +112,19 @@ model Lead {
   profile Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("leads")
+}
+
+model TeamMember {
+  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  adminId   String   @db.Uuid
+  email     String
+  name      String?
+  role      String   @default("EMPLOYEE") // ADMIN or EMPLOYEE
+  status    String   @default("ACTIVE")   // PENDING or ACTIVE
+  createdAt DateTime @default(now())
+
+  admin Profile @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@unique([adminId, email])
+  @@map("team_members")
 }

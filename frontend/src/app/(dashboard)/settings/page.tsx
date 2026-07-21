@@ -14,6 +14,14 @@ export default function ProfileSettingsPage() {
   const [loadingAccounts, setLoadingAccounts] = useState(true);
   const [updatingRoleId, setUpdatingRoleId] = useState<string | null>(null);
 
+  // Team Members State
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
+  const [loadingTeam, setLoadingTeam] = useState(true);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteName, setInviteName] = useState('');
+  const [inviteRole, setInviteRole] = useState('EMPLOYEE');
+  const [inviting, setInviting] = useState(false);
+
   // 2FA Security State
   const [mfaFactors, setMfaFactors] = useState<any[]>([]);
   const [mfaEnabled, setMfaEnabled] = useState(false);
@@ -85,11 +93,59 @@ export default function ProfileSettingsPage() {
     }
   };
 
+  const loadTeamMembers = async () => {
+    try {
+      setLoadingTeam(true);
+      const res = await fetchAPI('/social/team');
+      setTeamMembers(res.members || []);
+    } catch (err) {
+      console.error('Error loading team members:', err);
+    } finally {
+      setLoadingTeam(false);
+    }
+  };
+
   useEffect(() => {
     loadProfile();
     loadConnectedAccounts();
     loadMfaStatus();
+    loadTeamMembers();
   }, []);
+
+  const handleInviteMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inviteEmail) return showToast('error', 'Email is required.');
+
+    setInviting(true);
+    try {
+      await fetchAPI('/social/team/invite', {
+        method: 'POST',
+        body: JSON.stringify({
+          email: inviteEmail,
+          name: inviteName,
+          role: inviteRole
+        })
+      });
+      showToast('success', `Team member ${inviteEmail} added with ${inviteRole} role.`);
+      setInviteEmail('');
+      setInviteName('');
+      await loadTeamMembers();
+    } catch (err: any) {
+      showToast('error', err.message || 'Failed to add team member.');
+    } finally {
+      setInviting(false);
+    }
+  };
+
+  const handleRemoveMember = async (memberId: string) => {
+    try {
+      await fetchAPI(`/social/team/${memberId}`, { method: 'DELETE' });
+      showToast('success', 'Team member access revoked.');
+      setTeamMembers(prev => prev.filter(m => m.id !== memberId));
+    } catch (err: any) {
+      showToast('error', err.message || 'Failed to remove team member.');
+    }
+  };
 
   // Update account role
   const handleRoleChange = async (accountId: string, newRole: string) => {
@@ -345,6 +401,89 @@ export default function ProfileSettingsPage() {
               Tip: Set role to <strong>Employee</strong> to test security limits on the Ads Manager screen.
             </div>
           </div>
+        </div>
+
+        {/* Team Members & Employee Access Delegation Card */}
+        <div className="card" style={{ border: '1px solid var(--border)' }}>
+          <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+            <div>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: '700', margin: 0 }}>Team & Employee Access Delegation</h2>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: '4px 0 0' }}>
+                As an Admin, invite employees or team members by email and assign them specific roles (Admin or Employee).
+              </p>
+            </div>
+            <div style={{ padding: '8px', borderRadius: '10px', background: 'rgba(79,70,229,0.1)', color: 'var(--accent)' }}>
+              <User size={22} />
+            </div>
+          </div>
+
+          {/* Invite Employee Form */}
+          <form onSubmit={handleInviteMember} style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap', alignItems: 'flex-end', background: 'var(--bg-secondary)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+            <div style={{ flex: 1, minWidth: '180px' }}>
+              <label style={{ fontSize: '0.8rem', fontWeight: '600', display: 'block', marginBottom: '4px' }}>Employee Name</label>
+              <input type="text" placeholder="e.g. Amit Sharma" value={inviteName} onChange={(e) => setInviteName(e.target.value)} style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '0.9rem' }} />
+            </div>
+            <div style={{ flex: 1.5, minWidth: '220px' }}>
+              <label style={{ fontSize: '0.8rem', fontWeight: '600', display: 'block', marginBottom: '4px' }}>Employee Email</label>
+              <input type="email" placeholder="amit@company.com" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} required style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '0.9rem' }} />
+            </div>
+            <div style={{ width: '130px' }}>
+              <label style={{ fontSize: '0.8rem', fontWeight: '600', display: 'block', marginBottom: '4px' }}>Assign Role</label>
+              <select value={inviteRole} onChange={(e) => setInviteRole(e.target.value)} style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '0.9rem' }}>
+                <option value="EMPLOYEE">Employee</option>
+                <option value="ADMIN">Admin</option>
+              </select>
+            </div>
+            <button className="btn-primary" type="submit" disabled={inviting} style={{ padding: '9px 18px', fontSize: '0.9rem' }}>
+              {inviting ? 'Inviting...' : '+ Add Member'}
+            </button>
+          </form>
+
+          {/* Team Members List */}
+          {loadingTeam ? (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '20px' }}>
+              <Loader2 size={24} style={{ animation: 'spin 1s linear infinite', color: 'var(--accent)' }} />
+            </div>
+          ) : teamMembers.length === 0 ? (
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>No extra team members added yet. You are the sole Admin.</p>
+          ) : (
+            <div className="table-responsive">
+              <table className="ads-table" style={{ width: '100%', fontSize: '0.9rem' }}>
+                <thead>
+                  <tr>
+                    <th>Member Name</th>
+                    <th>Email Address</th>
+                    <th>Assigned Role</th>
+                    <th>Access Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {teamMembers.map(m => (
+                    <tr key={m.id}>
+                      <td className="fw-600">{m.name || 'Team Member'}</td>
+                      <td>{m.email}</td>
+                      <td>
+                        <span style={{
+                          padding: '3px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold',
+                          background: m.role === 'ADMIN' ? 'rgba(79, 70, 229, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+                          color: m.role === 'ADMIN' ? '#4f46e5' : '#3b82f6'
+                        }}>
+                          {m.role}
+                        </span>
+                      </td>
+                      <td><span style={{ color: '#22c55e', fontSize: '0.8rem', fontWeight: '500' }}>Active</span></td>
+                      <td>
+                        <button onClick={() => handleRemoveMember(m.id)} style={{ border: 'none', background: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '500' }}>
+                          Revoke Access
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         {/* Two-Factor Authentication Security Panel */}

@@ -351,3 +351,59 @@ export const updateAccountRole = async (req: Request, res: Response) => {
     return res.status(500).json({ error: 'Failed to update role' });
   }
 };
+
+// Get Team Members
+export const getTeamMembers = async (req: Request, res: Response) => {
+  const userId = req.user?.id as string;
+  try {
+    const members = await prisma.teamMember.findMany({
+      where: { adminId: userId },
+      orderBy: { createdAt: 'desc' }
+    });
+    return res.status(200).json({ members });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to fetch team members' });
+  }
+};
+
+// Invite / Add Team Member
+export const inviteTeamMember = async (req: Request, res: Response) => {
+  const userId = req.user?.id as string;
+  const { email, name, role } = req.body;
+
+  if (!email) return res.status(400).json({ error: 'Email is required' });
+
+  try {
+    const member = await prisma.teamMember.create({
+      data: {
+        adminId: userId,
+        email: email.toLowerCase().trim(),
+        name: name || null,
+        role: role?.toUpperCase() === 'ADMIN' ? 'ADMIN' : 'EMPLOYEE',
+        status: 'ACTIVE'
+      }
+    });
+    return res.status(201).json({ message: 'Team member added successfully', member });
+  } catch (err: any) {
+    if (err.code === 'P2002') {
+      return res.status(400).json({ error: 'This team member is already added.' });
+    }
+    return res.status(500).json({ error: 'Failed to add team member' });
+  }
+};
+
+// Remove Team Member
+export const removeTeamMember = async (req: Request, res: Response) => {
+  const userId = req.user?.id as string;
+  const memberId = req.params.memberId as string;
+
+  try {
+    await prisma.teamMember.deleteMany({
+      where: { id: memberId, adminId: userId }
+    });
+    return res.status(200).json({ message: 'Team member removed successfully' });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to remove team member' });
+  }
+};
+

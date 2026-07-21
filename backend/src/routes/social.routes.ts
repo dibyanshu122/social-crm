@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { connectAccount, getAccounts, createPost, getPosts, updatePost, deletePost, getAnalytics, updateAccountRole } from '../controllers/social.controller';
+import { connectAccount, getAccounts, createPost, getPosts, updatePost, deletePost, getAnalytics, updateAccountRole, getTeamMembers, inviteTeamMember, removeTeamMember } from '../controllers/social.controller';
 import { requireAuth } from '../middleware/auth';
 
 const router = Router();
@@ -10,6 +10,10 @@ router.use(requireAuth);
 router.post('/accounts', connectAccount);
 router.get('/accounts', getAccounts);
 router.put('/accounts/:accountId/role', updateAccountRole);
+
+router.get('/team', getTeamMembers);
+router.post('/team/invite', inviteTeamMember);
+router.delete('/team/:memberId', removeTeamMember);
 
 router.post('/posts', createPost);
 router.get('/posts', getPosts);
