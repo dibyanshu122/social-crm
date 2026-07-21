@@ -42,7 +42,7 @@ export const getAccounts = async (req: Request, res: Response) => {
   try {
     const accounts = await prisma.socialAccount.findMany({
       where: { userId },
-      select: { id: true, platform: true, platformAccountId: true, accountName: true, createdAt: true }
+      select: { id: true, platform: true, platformAccountId: true, accountName: true, userRole: true, createdAt: true }
     });
     return res.status(200).json({ accounts });
   } catch (error) {

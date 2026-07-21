@@ -378,7 +378,7 @@ export default function ProfileSettingsPage() {
                           <Loader2 size={14} style={{ animation: 'spin 1s linear infinite', color: 'var(--accent)' }} />
                         )}
                         <select
-                          value={account.userRole?.toUpperCase() || 'EMPLOYEE'}
+                          value={account.userRole?.toUpperCase() || 'ADMIN'}
                           onChange={(e) => handleRoleChange(account.id, e.target.value)}
                           disabled={updatingRoleId === account.id}
                           style={{
