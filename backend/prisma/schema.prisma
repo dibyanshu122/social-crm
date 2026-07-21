@@ -30,7 +30,7 @@ model SocialAccount {
   encryptedAccessToken  String
   encryptedRefreshToken String?
   tokenExpiresAt        DateTime?
-  userRole              String    @default("employee")
+  userRole              String    @default("ADMIN")
   createdAt             DateTime  @default(now())
 
   profile Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -47,7 +47,7 @@ model AdAccount {
   accountName           String
   encryptedAccessToken  String
   encryptedRefreshToken String?
-  userRole              String       @default("employee")
+  userRole              String       @default("ADMIN")
   createdAt             DateTime     @default(now())
   campaigns             AdCampaign[]
 
