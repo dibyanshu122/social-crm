@@ -30,7 +30,10 @@ app.use('/api/v1/ads', adsRoutes);
 app.use('/api/v1/oauth', oauthRoutes);
 app.use('/api/v1/leads', leadsRoutes);
 
-// Basic health check route
+// Basic health check routes
+app.get('/', (req: Request, res: Response) => {
+  res.json({ status: 'ok', message: 'Social CRM Backend API is running live 🚀' });
+});
 app.get('/api/health', (req: Request, res: Response) => {
   res.json({ status: 'ok', message: 'Backend is running correctly.' });
 });
