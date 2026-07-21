@@ -34,15 +34,27 @@ export const connectAdAccount = async (req: Request, res: Response) => {
   }
 };
 
+import { getEffectiveUser } from '../utils/team';
+
 // Get all connected ad accounts
 export const getAdAccounts = async (req: Request, res: Response) => {
   const userId = req.user?.id as string;
+  const email = req.user?.email as string;
+
   try {
+    const { effectiveUserId, role } = await getEffectiveUser(userId, email);
+
     const accounts = await prisma.adAccount.findMany({
-      where: { userId },
+      where: { userId: effectiveUserId },
       select: { id: true, platform: true, adAccountId: true, accountName: true, userRole: true, createdAt: true }
     });
-    return res.status(200).json({ accounts });
+
+    const accountsWithRole = accounts.map(acc => ({
+      ...acc,
+      userRole: role === 'EMPLOYEE' ? 'EMPLOYEE' : acc.userRole
+    }));
+
+    return res.status(200).json({ accounts: accountsWithRole });
   } catch (error) {
     return res.status(500).json({ error: 'Failed to fetch ad accounts' });
   }
@@ -51,9 +63,12 @@ export const getAdAccounts = async (req: Request, res: Response) => {
 // Get Campaigns (Database-backed with seeding fallback)
 export const getCampaigns = async (req: Request, res: Response) => {
   const userId = req.user?.id as string;
+  const email = req.user?.email as string;
   const accountId = req.params.accountId as string;
+
   try {
-    const account = await prisma.adAccount.findFirst({ where: { id: accountId, userId } });
+    const { effectiveUserId } = await getEffectiveUser(userId, email);
+    const account = await prisma.adAccount.findFirst({ where: { id: accountId, userId: effectiveUserId } });
     if (!account) return res.status(404).json({ error: 'Ad account not found' });
 
     // 1. Fetch existing campaigns from DB

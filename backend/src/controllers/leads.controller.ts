@@ -3,13 +3,18 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+import { getEffectiveUser } from '../utils/team';
+
 // Get all leads (Database-backed with seeding fallback)
 export const getLeads = async (req: Request, res: Response) => {
   const userId = req.user?.id as string;
+  const email = req.user?.email as string;
 
   try {
+    const { effectiveUserId } = await getEffectiveUser(userId, email);
+
     let leads = await prisma.lead.findMany({
-      where: { userId },
+      where: { userId: effectiveUserId },
       orderBy: { createdAt: 'desc' }
     });
 

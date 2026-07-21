@@ -35,16 +35,28 @@ export const connectAccount = async (req: Request, res: Response) => {
   }
 };
 
+import { getEffectiveUser } from '../utils/team';
+
 // Get all connected social accounts
 export const getAccounts = async (req: Request, res: Response) => {
   const userId = req.user?.id as string;
+  const email = req.user?.email as string;
 
   try {
+    const { effectiveUserId, role } = await getEffectiveUser(userId, email);
+
     const accounts = await prisma.socialAccount.findMany({
-      where: { userId },
+      where: { userId: effectiveUserId },
       select: { id: true, platform: true, platformAccountId: true, accountName: true, userRole: true, createdAt: true }
     });
-    return res.status(200).json({ accounts });
+
+    // Override role if user is an employee in team
+    const accountsWithRole = accounts.map(acc => ({
+      ...acc,
+      userRole: role === 'EMPLOYEE' ? 'EMPLOYEE' : acc.userRole
+    }));
+
+    return res.status(200).json({ accounts: accountsWithRole });
   } catch (error) {
     return res.status(500).json({ error: 'Failed to fetch social accounts' });
   }
