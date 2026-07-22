@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Users, AlertCircle, Loader2, Facebook, Twitter, Linkedin, Instagram, CheckCircle2, ArrowUpRight, PlusCircle } from 'lucide-react';
-import { fetchAPI } from '@/lib/apiClient';
+import { fetchAPI, getBackendUrl } from '@/lib/apiClient';
 import { supabase } from '@/lib/supabase';
 
 export default function AccountsPage() {
@@ -37,7 +37,8 @@ export default function AccountsPage() {
       alert('User not authenticated. Please log in again.');
       return;
     }
-    window.location.href = `http://localhost:5000/api/v1/oauth/${platform}?userId=${userId}`;
+    const backendUrl = getBackendUrl();
+    window.location.href = `${backendUrl}/api/v1/oauth/${platform}?userId=${userId}`;
   };
 
   const isFbConnected = analytics?.facebook && analytics.facebook.profile && analytics.facebook.profile !== 'Not connected';

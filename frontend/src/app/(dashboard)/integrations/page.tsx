@@ -122,7 +122,7 @@ export default function SettingsPage() {
       showToast('error', 'User not authenticated. Please log in again.');
       return;
     }
-    window.location.href = `http://localhost:5000/api/v1/oauth/${oauthPath}?userId=${currentUserId}`;
+    window.location.href = `${getBackendUrl()}/api/v1/oauth/${oauthPath}?userId=${currentUserId}`;
   };
 
   const handleDisconnect = async (platform: string) => {
@@ -150,7 +150,7 @@ export default function SettingsPage() {
         showToast('error', 'User not authenticated. Please log in again.');
         return;
       }
-      window.location.href = `http://localhost:5000/api/v1/oauth/google?userId=${currentUserId}`;
+      window.location.href = `${getBackendUrl()}/api/v1/oauth/google?userId=${currentUserId}`;
     } else if (platformId === 'facebook') {
       showToast('info', 'Meta Ads are connected automatically when you connect Facebook Pages above.');
     } else if (platformId === 'linkedin') {

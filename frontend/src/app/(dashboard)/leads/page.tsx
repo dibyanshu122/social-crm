@@ -48,8 +48,10 @@ export default function LeadsPage() {
 
   const handleExportCSV = async () => {
     try {
-      const token = localStorage.getItem('sb-token') || '';
-      const response = await fetch('http://localhost:5000/api/v1/leads/export/csv', {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || '';
+      const backendUrl = getBackendUrl();
+      const response = await fetch(`${backendUrl}/api/v1/leads/export/csv`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

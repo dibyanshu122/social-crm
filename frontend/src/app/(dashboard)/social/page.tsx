@@ -86,8 +86,10 @@ export default function SocialMediaPage() {
         const formData = new FormData();
         formData.append('media', mediaFile);
         
-        const token = localStorage.getItem('sb-token') || '';
-        const uploadRes = await fetch('http://localhost:5000/api/v1/social/upload', {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token || '';
+        const backendUrl = getBackendUrl();
+        const uploadRes = await fetch(`${backendUrl}/api/v1/social/upload`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`

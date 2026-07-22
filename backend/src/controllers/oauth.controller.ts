@@ -5,8 +5,8 @@ import { encrypt } from '../utils/encryption';
 import * as crypto from 'crypto';
 
 const prisma = new PrismaClient();
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
-const BACKEND_URL  = process.env.BACKEND_URL  || 'http://localhost:5000';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://social-crm-gray.vercel.app';
+const BACKEND_URL  = process.env.BACKEND_URL  || 'https://social-crm.onrender.com';
 
 // In-memory store for PKCE verifiers keyed by state
 // In production, use Redis or express-session
