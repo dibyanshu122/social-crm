@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Activity, Edit2, Play, Pause, TrendingUp, DollarSign, Plus, Loader2, X, Lock, ShieldAlert, Check } from 'lucide-react';
+import { Activity, Edit2, Play, Pause, TrendingUp, DollarSign, Plus, Loader2, X, Lock, ShieldAlert, Check, Trash2 } from 'lucide-react';
 import { fetchAPI } from '@/lib/apiClient';
 
 export default function AdsManagerPage() {
@@ -111,6 +111,23 @@ export default function AdsManagerPage() {
       } catch (err: any) {
         alert(err.message);
       }
+    }
+  };
+
+  const handleDeleteCampaign = async (accountId: string, id: string) => {
+    if (!checkIsAdmin(accountId)) {
+      alert("Permission Denied: Only Admins can delete campaigns.");
+      return;
+    }
+    if (!confirm("Are you sure you want to delete this campaign? This action cannot be undone.")) return;
+    
+    try {
+      await fetchAPI(`/ads/accounts/${accountId}/campaigns/${id}`, {
+        method: 'DELETE'
+      });
+      setCampaigns(prev => prev.filter(c => c.id !== id));
+    } catch (err: any) {
+      alert(err.message || "Failed to delete campaign");
     }
   };
 
@@ -270,14 +287,23 @@ export default function AdsManagerPage() {
                             <TrendingUp size={12} /> View Audience & Insights
                           </button>
                           {isAdmin ? (
-                            <button 
-                              onClick={() => toggleStatus(campaign.accountId, campaign.id, campaign.status)} 
-                              className={`toggle-btn ${campaign.status.toLowerCase()}`}
-                              title={campaign.status === 'ACTIVE' ? 'Pause Campaign' : 'Resume Campaign'}
-                              style={{ border: 'none', cursor: 'pointer', background: 'none', padding: '5px' }}
-                            >
-                              {campaign.status === 'ACTIVE' ? <Pause size={16} /> : <Play size={16} />}
-                            </button>
+                            <>
+                              <button 
+                                onClick={() => toggleStatus(campaign.accountId, campaign.id, campaign.status)} 
+                                className={`toggle-btn ${campaign.status.toLowerCase()}`}
+                                title={campaign.status === 'ACTIVE' ? 'Pause Campaign' : 'Resume Campaign'}
+                                style={{ border: 'none', cursor: 'pointer', background: 'none', padding: '5px' }}
+                              >
+                                {campaign.status === 'ACTIVE' ? <Pause size={16} /> : <Play size={16} />}
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteCampaign(campaign.accountId, campaign.id)} 
+                                title="Delete Campaign"
+                                style={{ border: 'none', cursor: 'pointer', background: 'none', padding: '5px', color: '#ef4444' }}
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </>
                           ) : (
                             <span 
                               title="Ad status toggles are locked for Employees" 
@@ -306,7 +332,8 @@ export default function AdsManagerPage() {
         }}>
           <div className="card" style={{
             width: '100%', maxWidth: '480px', padding: '24px', position: 'relative',
-            background: 'var(--bg-card)', borderRadius: '16px', boxShadow: '0 20px 40px rgba(0,0,0,0.3)'
+            background: 'var(--bg-card)', borderRadius: '16px', boxShadow: '0 20px 40px rgba(0,0,0,0.3)',
+            maxHeight: '90vh', overflowY: 'auto'
           }}>
             <button onClick={() => setShowModal(false)} style={{
               position: 'absolute', top: '16px', right: '16px', background: 'none', border: 'none',

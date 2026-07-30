@@ -84,7 +84,7 @@ export default function ProfileSettingsPage() {
       setMfaFactors(enrolledFactors);
       
       // Check if any TOTP factor is verified/active
-      const isTotpEnabled = enrolledFactors.some(f => f.factorType === 'totp' && f.status === 'verified');
+      const isTotpEnabled = enrolledFactors.some(f => (f.factorType === 'totp' || f.factor_type === 'totp') && f.status === 'verified');
       setMfaEnabled(isTotpEnabled);
     } catch (err) {
       console.error('Error listing MFA factors:', err);
@@ -172,7 +172,7 @@ export default function ProfileSettingsPage() {
     try {
       const { data: factorsList, error: listError } = await supabase.auth.mfa.listFactors();
       if (!listError && factorsList?.all) {
-        const unverified = factorsList.all.filter(f => f.status === 'unverified' && f.factorType === 'totp');
+        const unverified = factorsList.all.filter(f => f.status === 'unverified' && (f.factorType === 'totp' || f.factor_type === 'totp'));
         for (const factor of unverified) {
           await supabase.auth.mfa.unenroll({ factorId: factor.id });
         }
@@ -241,7 +241,7 @@ export default function ProfileSettingsPage() {
     
     setLoadingMfa(true);
     try {
-      const activeFactor = mfaFactors.find(f => f.factorType === 'totp' && f.status === 'verified');
+      const activeFactor = mfaFactors.find(f => (f.factorType === 'totp' || f.factor_type === 'totp') && f.status === 'verified');
       if (!activeFactor) throw new Error('No active TOTP factor found.');
 
       const { error } = await supabase.auth.mfa.unenroll({

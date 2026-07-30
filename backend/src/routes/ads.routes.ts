@@ -6,6 +6,7 @@ import {
   createCampaign,
   updateCampaignBudget, 
   toggleCampaignStatus, 
+  deleteCampaign,
   getAdAnalytics 
 } from '../controllers/ads.controller';
 import { requireAuth } from '../middleware/auth';
@@ -22,6 +23,7 @@ router.get('/accounts/:accountId/campaigns', getCampaigns);
 router.post('/accounts/:accountId/campaigns', createCampaign);
 router.put('/accounts/:accountId/campaigns/:campaignId/budget', updateCampaignBudget);
 router.put('/accounts/:accountId/campaigns/:campaignId/status', toggleCampaignStatus);
+router.delete('/accounts/:accountId/campaigns/:campaignId', deleteCampaign);
 
 router.get('/accounts/:accountId/analytics', getAdAnalytics);
 
