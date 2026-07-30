@@ -39,6 +39,7 @@ const menuGroups = [
 export default function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
   const pathname = usePathname();
   const router   = useRouter();
+  const [hoveredTooltip, setHoveredTooltip] = useState<{ text: string, top: number } | null>(null);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -73,7 +74,7 @@ export default function Sidebar({ collapsed, onToggle }: { collapsed: boolean; o
       {/* Nav Groups */}
       <nav className="sidebar-nav" style={{ flex: 1 }}>
         {menuGroups.map((group) => (
-          <div key={group.label} style={{ marginBottom: '4px' }}>
+          <div key={group.label} className="sidebar-group" style={{ marginBottom: '4px' }}>
             <div className="sidebar-section-label">{group.label}</div>
             {group.items.map((item) => {
               const Icon = item.icon;
@@ -84,6 +85,13 @@ export default function Sidebar({ collapsed, onToggle }: { collapsed: boolean; o
                   key={item.path}
                   href={item.path}
                   className={isActive ? 'active' : ''}
+                  onMouseEnter={(e) => {
+                    if (collapsed) {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setHoveredTooltip({ text: item.label, top: rect.top + rect.height / 2 });
+                    }
+                  }}
+                  onMouseLeave={() => setHoveredTooltip(null)}
                 >
                   <Icon size={17} style={{ minWidth: '17px' }} />
                   <span className="sidebar-nav-label">{item.label}</span>
@@ -105,22 +113,26 @@ export default function Sidebar({ collapsed, onToggle }: { collapsed: boolean; o
         <button
           className="sidebar-toggle-btn"
           onClick={onToggle}
-          title="Toggle Sidebar"
           style={{ 
             display: 'flex', alignItems: 'center', gap: '11px',
             width: '100%', padding: collapsed ? '11px' : '11px 12px', borderRadius: '10px',
-            background: 'transparent', border: 'none',
+            background: 'transparent', border: 'none', position: 'relative',
             color: 'var(--text-muted)', cursor: 'pointer', transition: 'all 0.2s',
             fontSize: '0.88rem', fontWeight: 500, textAlign: 'left',
             justifyContent: collapsed ? 'center' : 'flex-start'
           }}
           onMouseEnter={(e) => { 
             e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; 
-            e.currentTarget.style.color = 'var(--text)'; 
+            e.currentTarget.style.color = 'var(--text)';
+            if (collapsed) {
+              const rect = e.currentTarget.getBoundingClientRect();
+              setHoveredTooltip({ text: "Expand", top: rect.top + rect.height / 2 });
+            }
           }}
           onMouseLeave={(e) => { 
             e.currentTarget.style.background = 'transparent'; 
-            e.currentTarget.style.color = 'var(--text-muted)'; 
+            e.currentTarget.style.color = 'var(--text-muted)';
+            setHoveredTooltip(null);
           }}
         >
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ minWidth: '17px', transform: collapsed ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s' }}>
@@ -129,6 +141,28 @@ export default function Sidebar({ collapsed, onToggle }: { collapsed: boolean; o
           <span className="sidebar-nav-label">Collapse</span>
         </button>
       </div>
+
+      {hoveredTooltip && collapsed && (
+        <div style={{
+          position: 'fixed',
+          left: '88px', /* pushed slightly right so it breathes */
+          top: `${hoveredTooltip.top}px`,
+          transform: 'translateY(-50%)',
+          background: '#2d2859', /* dark purple matching sidebar */
+          color: '#ffffff',
+          padding: '6px 12px',
+          borderRadius: '6px',
+          zIndex: 9999,
+          fontSize: '0.8rem',
+          fontWeight: 600,
+          whiteSpace: 'nowrap',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          pointerEvents: 'none'
+        }}>
+          {hoveredTooltip.text}
+        </div>
+      )}
     </aside>
   );
 }
