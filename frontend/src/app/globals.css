@@ -95,17 +95,7 @@
 [data-theme="light"] body {
   background: var(--bg);
 }
-[data-theme="light"] .sidebar {
-  background: var(--bg-card);
-  border-right: 1px solid var(--border);
-  box-shadow: 2px 0 16px rgba(0,0,0,0.06);
-}
-[data-theme="light"] .sidebar-brand-text { color: var(--text); }
-[data-theme="light"] .sidebar-section-label { color: #94a3b8; }
-[data-theme="light"] .sidebar-nav a { color: var(--text-muted); }
-[data-theme="light"] .sidebar-nav a:hover { background: rgba(99,102,241,0.06); color: var(--accent); }
-[data-theme="light"] .sidebar-nav a.active { background: rgba(99,102,241,0.08); color: var(--accent); }
-[data-theme="light"] .sidebar-user { background: var(--bg-input); }
+/* Sidebar is forced dark in all themes now, so no overrides needed here */
 [data-theme="light"] .topbar {
   background: rgba(244,246,251,0.85);
   border-bottom: 1px solid var(--border);
@@ -270,8 +260,14 @@ body {
 
 /* ── Sidebar ──────────────────────────────────────────────── */
 .sidebar {
+  /* Force dark mode colors for sidebar in both themes */
+  --text:           #f1f5f9;
+  --text-muted:     #94a3b8;
+  --text-dim:       #64748b;
+  --border:         rgba(255,255,255,0.07);
+  
   width: var(--sidebar-w);
-  background: linear-gradient(180deg, rgba(99,102,241,0.08) 0%, var(--bg-card) 40%);
+  background: #1b1844;
   border-right: 1px solid var(--border);
   padding: 24px 16px;
   display: flex; flex-direction: column;
