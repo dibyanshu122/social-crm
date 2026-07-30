@@ -11,6 +11,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const [authenticated, setAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
     const check = async () => {
@@ -45,8 +46,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (!authenticated) return null;
 
   return (
-    <div className="layout-container">
-      <Sidebar />
+    <div className={`layout-container ${collapsed ? 'sidebar-collapsed' : ''}`}>
+      <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
       <div className="dashboard-wrapper">
         <Topbar />
         <main className="main-content">

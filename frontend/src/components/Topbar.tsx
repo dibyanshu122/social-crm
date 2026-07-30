@@ -106,12 +106,11 @@ export default function Topbar() {
           className="topbar-user"
           onClick={handleLogout}
           title="Click to logout"
-          style={{ cursor: 'pointer', padding: '6px 16px', display: 'flex', alignItems: 'center', gap: '10px' }}
+          style={{ cursor: 'pointer', padding: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%' }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--accent)', color: 'white', borderRadius: '50%', width: '28px', height: '28px' }}>
-            <User size={16} />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--accent)', color: 'white', borderRadius: '50%', width: '32px', height: '32px' }}>
+            <User size={18} />
           </div>
-          <span className="topbar-email" style={{ fontWeight: 500, fontSize: '0.85rem' }}>{email || 'admin@socialcrm.com'}</span>
         </div>
       </div>
     </header>

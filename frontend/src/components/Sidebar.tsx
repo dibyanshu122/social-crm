@@ -36,20 +36,9 @@ const menuGroups = [
   },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
   const pathname = usePathname();
   const router   = useRouter();
-  const [email, setEmail] = useState('');
-  const [initials, setInitials] = useState('U');
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user?.email) {
-        setEmail(user.email);
-        setInitials(user.email.charAt(0).toUpperCase());
-      }
-    });
-  }, []);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -57,7 +46,7 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
       {/* Brand */}
       <div className="sidebar-brand">
         <div className="sidebar-brand-icon">
@@ -95,16 +84,15 @@ export default function Sidebar() {
 
       <hr className="sidebar-divider" />
 
-      {/* User Footer (Removed email as requested) */}
-      <div className="sidebar-user" style={{ display: 'flex', justifyContent: 'center' }}>
+      {/* User Footer with Toggle */}
+      <div className="sidebar-user" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
         <button
           className="btn-ghost"
-          onClick={handleLogout}
-          title="Logout"
-          style={{ width: '100%', gap: '8px' }}
+          onClick={onToggle}
+          title="Toggle Sidebar"
+          style={{ padding: '8px', border: 'none', background: 'transparent', width: '100%' }}
         >
-          <LogOut size={16} />
-          <span>Logout</span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: collapsed ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s' }}><path d="m15 18-6-6 6-6"/></svg>
         </button>
       </div>
     </aside>
