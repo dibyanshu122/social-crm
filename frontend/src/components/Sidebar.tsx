@@ -73,7 +73,7 @@ export default function Sidebar({ collapsed, onToggle }: { collapsed: boolean; o
       {/* Nav Groups */}
       <nav className="sidebar-nav" style={{ flex: 1 }}>
         {menuGroups.map((group) => (
-          <div key={group.label} style={{ marginBottom: '8px' }}>
+          <div key={group.label} style={{ marginBottom: '4px' }}>
             <div className="sidebar-section-label">{group.label}</div>
             {group.items.map((item) => {
               const Icon = item.icon;
@@ -94,19 +94,25 @@ export default function Sidebar({ collapsed, onToggle }: { collapsed: boolean; o
         ))}
       </nav>
 
-      <hr className="sidebar-divider" />
-
-      <div className="sidebar-toggle-container" style={{ marginTop: 'auto', marginBottom: '10px', width: '100%' }}>
+      <div className="sidebar-toggle-container" style={{ 
+        marginTop: 'auto',
+        background: '#1b1844',
+        padding: '16px 0',
+        width: '100%',
+        zIndex: 10
+      }}>
+        <hr className="sidebar-divider" style={{ margin: '0 0 16px 0' }} />
         <button
           className="sidebar-toggle-btn"
           onClick={onToggle}
           title="Toggle Sidebar"
           style={{ 
             display: 'flex', alignItems: 'center', gap: '11px',
-            width: '100%', padding: '11px 12px', borderRadius: '10px',
+            width: '100%', padding: collapsed ? '11px' : '11px 12px', borderRadius: '10px',
             background: 'transparent', border: 'none',
             color: 'var(--text-muted)', cursor: 'pointer', transition: 'all 0.2s',
-            fontSize: '0.88rem', fontWeight: 500, textAlign: 'left'
+            fontSize: '0.88rem', fontWeight: 500, textAlign: 'left',
+            justifyContent: collapsed ? 'center' : 'flex-start'
           }}
           onMouseEnter={(e) => { 
             e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; 
