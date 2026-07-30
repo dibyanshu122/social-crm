@@ -4,12 +4,13 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
-import { UserPlus } from 'lucide-react';
+import Logo from '@/components/Logo';
 
 export default function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -34,9 +35,7 @@ export default function SignupPage() {
         throw error;
       }
 
-      if (data.session) {
-        router.push('/');
-      } else {
+      if (data.user) {
         alert("Signup successful! Please check your email to verify your account if email verification is enabled.");
         router.push('/login');
       }
@@ -50,10 +49,9 @@ export default function SignupPage() {
   return (
     <div className="auth-container">
       <div className="auth-card glass-panel">
-        <div className="auth-header">
-          <UserPlus size={32} className="auth-icon" />
-          <h1>Create Account</h1>
-          <p>Join the Command Center</p>
+        <div className="auth-header" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <Logo size="large" />
+          <h1 style={{ marginTop: '24px' }}>Create Account</h1>
         </div>
         
         {error && <div className="auth-error">{error}</div>}

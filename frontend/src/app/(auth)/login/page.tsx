@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { LogIn, Eye, EyeOff } from 'lucide-react';
+import Logo from '@/components/Logo';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -39,10 +40,9 @@ export default function LoginPage() {
   return (
     <div className="auth-container">
       <div className="auth-card glass-panel">
-        <div className="auth-header">
-          <LogIn size={32} className="auth-icon" />
-          <h1>Welcome Back</h1>
-          <p>Login to your Command Center</p>
+        <div className="auth-header" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <Logo size="large" />
+          <h1 style={{ marginTop: '24px' }}>Welcome Back</h1>
         </div>
         
         {error && <div className="auth-error">{error}</div>}

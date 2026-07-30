@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useEffect, useState } from 'react';
+import Logo from '@/components/Logo';
 
 const menuGroups = [
   {
@@ -69,26 +70,8 @@ export default function Sidebar({
       <aside className={`sidebar ${collapsed ? 'collapsed' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
         {/* Brand */}
         <div className="sidebar-brand">
-          <div className="sidebar-brand-icon">
-            <div style={{
-              width: '32px', height: '32px', borderRadius: '8px',
-              background: 'transparent',
-              display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignContent: 'center',
-              padding: '4px', gap: '2px'
-            }}>
-              <div style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#3b82f6' }}></div>
-              <div style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#3b82f6' }}></div>
-            <div style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#22c55e' }}></div>
-            <div style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#22c55e' }}></div>
-          </div>
+          <Logo />
         </div>
-        <div className="sidebar-brand-text-container">
-          <div className="sidebar-brand-text">
-            <span style={{ color: '#3b82f6' }}>DOT</span> <span style={{ color: '#22c55e' }}>DOMINO</span>
-          </div>
-          <div className="sidebar-brand-sub" style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>SOCIAL CRM PLATFORM</div>
-        </div>
-      </div>
 
       {/* Nav Groups */}
       <nav className="sidebar-nav" style={{ flex: 1 }}>
