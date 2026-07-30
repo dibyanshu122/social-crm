@@ -27,19 +27,8 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 
-// Setup multer storage
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const uploadDir = path.join(__dirname, '../../uploads');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + '-' + file.originalname);
-  }
-});
+// Setup multer storage (Memory storage for Supabase upload)
+const storage = multer.memoryStorage();
 const upload = multer({ 
   storage,
   limits: { fileSize: 100 * 1024 * 1024 } // 100MB max limit for videos and images
