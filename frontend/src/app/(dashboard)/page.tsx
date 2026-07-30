@@ -15,6 +15,7 @@ interface Metrics {
   avgCtr: string;
   totalLeads: number;
   connectedPlatforms: number;
+  platformsList: string[];
 }
 
 interface RecentPost {
@@ -29,16 +30,7 @@ export default function DashboardHome() {
   const [metrics, setMetrics]         = useState<Metrics | null>(null);
   const [recentPosts, setRecentPosts] = useState<RecentPost[]>([]);
   const [loading, setLoading]         = useState(true);
-  const [greeting, setGreeting]       = useState('');
-  const [userName, setUserName]       = useState('');
-
   useEffect(() => {
-    const h = new Date().getHours();
-    setGreeting(h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening');
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user?.email) setUserName(user.email.split('@')[0]);
-    });
-
     const load = async () => {
       try {
         const [analyticsRes, postsRes, leadsRes, adAccsRes, socialAccsRes] = await Promise.allSettled([
@@ -74,6 +66,7 @@ export default function DashboardHome() {
         }
 
         const connectedPlatforms = new Set((socialAccs || []).map((a: any) => a.platform)).size;
+        const platformsList = (socialAccs || []).map((a: any) => a.platform);
 
         setMetrics({
           reach: totalReach,
@@ -82,6 +75,7 @@ export default function DashboardHome() {
           avgCtr: '3.2%',
           totalLeads: leads?.length || 0,
           connectedPlatforms,
+          platformsList,
         });
 
         setRecentPosts((posts || []).slice(0, 5));
@@ -145,19 +139,7 @@ export default function DashboardHome() {
 
   return (
     <>
-      {/* ── Welcome Header ─────────────────────────────── */}
-      <div style={{ marginBottom: '32px', animation: 'fadeUp 0.4s ease both' }}>
-        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-          {greeting} 👋
-        </div>
-        <h1 style={{ fontSize: '2rem', fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1.1 }}>
-          Welcome back,{' '}
-          <span className="gradient-text">{userName || 'Admin'}</span>
-        </h1>
-        <p style={{ color: 'var(--text-muted)', marginTop: '8px', fontSize: '0.9rem' }}>
-          Here's what's happening across your social channels today.
-        </p>
-      </div>
+
 
       {/* ── Stat Cards Grid ─────────────────────────────── */}
       {loading ? (
@@ -290,11 +272,13 @@ export default function DashboardHome() {
               <div className="card-icon"><BarChart3 size={16} /></div>
             </div>
             {[
-              { name: 'Facebook',  icon: '📘', connected: metrics?.connectedPlatforms ? true : false },
-              { name: 'Instagram', icon: '📸', connected: false },
-              { name: 'Twitter/X', icon: '🐦', connected: false },
-              { name: 'LinkedIn',  icon: '💼', connected: false },
-            ].map((p) => (
+              { name: 'Facebook',  id: 'facebook', icon: '📘' },
+              { name: 'Instagram', id: 'instagram', icon: '📸' },
+              { name: 'Twitter/X', id: 'twitter', icon: '🐦' },
+              { name: 'LinkedIn',  id: 'linkedin', icon: '💼' },
+            ].map((p) => {
+              const connected = metrics?.platformsList?.includes(p.id) || false;
+              return (
               <div key={p.name} style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 padding: '10px 0', borderBottom: '1px solid var(--border-light)'
@@ -304,13 +288,13 @@ export default function DashboardHome() {
                   <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>{p.name}</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span className={`status-dot ${p.connected ? 'active' : 'failed'}`} />
-                  <span style={{ fontSize: '0.75rem', color: p.connected ? 'var(--success)' : 'var(--text-muted)' }}>
-                    {p.connected ? 'Connected' : 'Not connected'}
+                  <span className={`status-dot ${connected ? 'active' : 'failed'}`} />
+                  <span style={{ fontSize: '0.75rem', color: connected ? 'var(--success)' : 'var(--text-muted)' }}>
+                    {connected ? 'Connected' : 'Not connected'}
                   </span>
                 </div>
               </div>
-            ))}
+            )})}
           </div>
         </div>
       </div>

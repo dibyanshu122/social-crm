@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Send, Clock, Image as ImageIcon, Facebook, Linkedin, Twitter, Instagram, UploadCloud, X } from 'lucide-react';
+import { Send, Clock, Image as ImageIcon, Facebook, Linkedin, Twitter, Instagram, UploadCloud, X, ChevronDown } from 'lucide-react';
 import { fetchAPI } from '@/lib/apiClient';
 
 export default function SocialMediaPage() {
@@ -21,6 +21,7 @@ export default function SocialMediaPage() {
 
   // Preview Tab State
   const [activePreview, setActivePreview] = useState<string>('facebook');
+  const [showAccountDropdown, setShowAccountDropdown] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -147,44 +148,65 @@ export default function SocialMediaPage() {
               You have not connected any social accounts yet. Please go to Settings to connect them.
             </div>
           ) : (
-            <div className="platform-selector" style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-              <button 
-                type="button" 
-                className="btn-secondary" 
-                style={{ padding: '8px 16px', fontSize: '0.85rem', borderRadius: '24px', fontWeight: '500' }}
-                onClick={selectAll}
+            <div style={{ position: 'relative' }}>
+              <button
+                type="button"
+                onClick={() => setShowAccountDropdown(!showAccountDropdown)}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  width: '100%', padding: '12px 16px', borderRadius: '12px',
+                  background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+                  color: 'var(--text-main)', fontSize: '0.95rem', cursor: 'pointer'
+                }}
               >
-                {selectedAccountIds.length > 0 && selectedAccountIds.length === accounts.length ? 'Deselect All' : 'Select All'}
+                <span>
+                  {selectedAccountIds.length === 0 ? 'Select platforms to publish' : `${selectedAccountIds.length} Platform(s) Selected`}
+                </span>
+                <ChevronDown size={18} />
               </button>
-              
-              {accounts.map(acc => {
-                const Icon = acc.platform === 'facebook' ? Facebook : 
-                             acc.platform === 'twitter' ? Twitter : 
-                             acc.platform === 'linkedin' ? Linkedin : 
-                             acc.platform === 'instagram' ? Instagram : Facebook;
-                
-                const isSelected = selectedAccountIds.includes(acc.id);
-                return (
-                  <button
-                    key={acc.id}
-                    type="button"
-                    className={`platform-btn ${isSelected ? 'active' : ''}`}
-                    onClick={() => toggleAccount(acc.id)}
-                    title={`Post to ${acc.accountName}`}
-                    style={{ 
-                      display: 'flex', alignItems: 'center', gap: '6px', 
-                      padding: '8px 16px', width: 'auto', borderRadius: '24px',
-                      background: isSelected ? 'var(--accent)' : 'var(--bg-secondary)',
-                      color: isSelected ? '#fff' : 'var(--text-main)',
-                      border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}`,
-                      transition: 'all 0.2s ease'
-                    }}
-                  >
-                    <Icon size={16} />
-                    <span style={{ fontSize: '0.85rem', fontWeight: '500' }}>{acc.accountName}</span>
-                  </button>
-                );
-              })}
+
+              {showAccountDropdown && (
+                <div style={{
+                  position: 'absolute', top: '100%', left: 0, right: 0, marginTop: '8px',
+                  background: 'var(--bg-card)', border: '1px solid var(--border)',
+                  borderRadius: '12px', padding: '8px', boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
+                  zIndex: 10, display: 'flex', flexDirection: 'column', gap: '4px',
+                  maxHeight: '300px', overflowY: 'auto'
+                }}>
+                  <div style={{ padding: '4px 8px', display: 'flex', justifyContent: 'flex-end' }}>
+                    <button 
+                      type="button" 
+                      style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}
+                      onClick={selectAll}
+                    >
+                      {selectedAccountIds.length > 0 && selectedAccountIds.length === accounts.length ? 'Deselect All' : 'Select All'}
+                    </button>
+                  </div>
+                  {accounts.map(acc => {
+                    const Icon = acc.platform === 'facebook' ? Facebook : 
+                                 acc.platform === 'twitter' ? Twitter : 
+                                 acc.platform === 'linkedin' ? Linkedin : 
+                                 acc.platform === 'instagram' ? Instagram : Facebook;
+                    const isSelected = selectedAccountIds.includes(acc.id);
+                    return (
+                      <div 
+                        key={acc.id}
+                        onClick={() => toggleAccount(acc.id)}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px',
+                          borderRadius: '8px', cursor: 'pointer',
+                          background: isSelected ? 'rgba(79,70,229,0.1)' : 'transparent',
+                          transition: 'background 0.2s'
+                        }}
+                      >
+                        <input type="checkbox" checked={isSelected} readOnly style={{ cursor: 'pointer' }} />
+                        <Icon size={16} style={{ color: isSelected ? 'var(--accent)' : 'var(--text-muted)' }} />
+                        <span style={{ fontSize: '0.9rem', color: 'var(--text-main)', fontWeight: isSelected ? 600 : 400 }}>{acc.accountName}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
@@ -197,7 +219,7 @@ export default function SocialMediaPage() {
           />
 
           {/* Media Dropzone */}
-          <div className="media-dropzone" style={{ border: '2px dashed var(--accent)', borderRadius: '12px', padding: '20px', textAlign: 'center', cursor: 'pointer', position: 'relative', background: 'rgba(79, 70, 229, 0.05)' }}>
+          <div className="media-dropzone" style={{ border: '2px dashed var(--accent)', borderRadius: '12px', padding: '10px', textAlign: 'center', cursor: 'pointer', position: 'relative', background: 'rgba(79, 70, 229, 0.05)' }}>
             <input 
               type="file" 
               accept="image/*,video/*"
@@ -208,21 +230,21 @@ export default function SocialMediaPage() {
             {mediaPreviewUrl ? (
               <div style={{ position: 'relative', display: 'inline-block' }}>
                 {mediaFile?.type.startsWith('video') ? (
-                  <video src={mediaPreviewUrl} controls style={{ maxHeight: '150px', borderRadius: '8px', maxWidth: '100%' }} />
+                  <video src={mediaPreviewUrl} controls style={{ maxHeight: '100px', borderRadius: '8px', maxWidth: '100%' }} />
                 ) : (
-                  <img src={mediaPreviewUrl} alt="Preview" style={{ maxHeight: '150px', borderRadius: '8px' }} />
+                  <img src={mediaPreviewUrl} alt="Preview" style={{ maxHeight: '100px', borderRadius: '8px' }} />
                 )}
                 <button 
                   onClick={(e) => { e.preventDefault(); clearMedia(); }}
-                  style={{ position: 'absolute', top: '-10px', right: '-10px', background: 'red', color: 'white', border: 'none', borderRadius: '50%', padding: '5px', cursor: 'pointer', zIndex: 10 }}
+                  style={{ position: 'absolute', top: '-6px', right: '-6px', background: 'red', color: 'white', border: 'none', borderRadius: '50%', padding: '4px', cursor: 'pointer', zIndex: 10 }}
                 >
-                  <X size={14} />
+                  <X size={12} />
                 </button>
               </div>
             ) : (
-              <div style={{ color: 'var(--accent)' }}>
-                <UploadCloud size={32} style={{ margin: '0 auto 10px' }} />
-                <p style={{ color: 'var(--text-muted)' }}>Drag & drop images or videos here, or click to browse</p>
+              <div style={{ color: 'var(--accent)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '10px 0' }}>
+                <UploadCloud size={24} style={{ marginBottom: '6px' }} />
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>Drag & drop or click to browse</p>
               </div>
             )}
           </div>

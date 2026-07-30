@@ -329,7 +329,7 @@ export default function ProfileSettingsPage() {
                 <label style={{ fontSize: '0.9rem', fontWeight: '600', display: 'block', marginBottom: '6px' }}>Organization</label>
                 <div style={{ position: 'relative' }}>
                   <Briefcase size={18} style={{ position: 'absolute', top: '14px', left: '15px', color: 'var(--text-muted)' }} />
-                  <input type="text" className="form-input" defaultValue="Anantya AI Command" style={{ paddingLeft: '45px', width: '100%' }} />
+                  <input type="text" className="form-input" placeholder="Organization name" style={{ paddingLeft: '45px', width: '100%' }} />
                 </div>
               </div>
             </div>

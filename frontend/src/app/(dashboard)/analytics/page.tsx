@@ -24,21 +24,12 @@ export default function AnalyticsPage() {
     { name: 'Twitter', followers: data?.twitter?.followers || 0, activity: data?.twitter?.tweets || 0 },
   ];
 
-  const trendData = [
-    { day: 'Mon', spend: 0, conversions: 0 },
-    { day: 'Tue', spend: 0, conversions: 0 },
-    { day: 'Wed', spend: 0, conversions: 0 },
-    { day: 'Thu', spend: 0, conversions: 0 },
-    { day: 'Fri', spend: 0, conversions: 0 },
-    { day: 'Sat', spend: 0, conversions: 0 },
-    { day: 'Sun', spend: 0, conversions: 0 },
-  ];
+
 
   return (
     <>
       <div className="page-header">
-        <h1>Interactive Analytics & Live Performance Dashboard</h1>
-        <p>Real-time metrics fetched directly from Facebook, Instagram, Twitter, and LinkedIn APIs.</p>
+        <h1>Social CRM Platform</h1>
       </div>
 
       {loading ? (
@@ -52,8 +43,9 @@ export default function AnalyticsPage() {
                 <h2>Facebook Page</h2>
                 <div className="card-icon"><Activity size={20} /></div>
               </div>
-              <div className="stat-value">{data?.facebook?.followers || 0} Followers</div>
-              <div className="stat-label">Page: {data?.facebook?.profile || 'B9 Automation'}</div>
+              <div className="stat-value">{data?.facebook?.followers || 0}</div>
+              <div className="stat-label" style={{ color: 'var(--text)', fontSize: '0.9rem', fontWeight: 600, marginTop: '4px', marginBottom: '4px' }}>Followers</div>
+              <div className="stat-label">Page: {data?.facebook?.profile || 'Unknown Page'}</div>
             </div>
 
             <div className="card">
@@ -61,7 +53,8 @@ export default function AnalyticsPage() {
                 <h2>Instagram Business</h2>
                 <div className="card-icon"><TrendingUp size={20} /></div>
               </div>
-              <div className="stat-value">{data?.instagram?.followers || 0} Followers</div>
+              <div className="stat-value">{data?.instagram?.followers || 0}</div>
+              <div className="stat-label" style={{ color: 'var(--text)', fontSize: '0.9rem', fontWeight: 600, marginTop: '4px', marginBottom: '4px' }}>Followers</div>
               <div className="stat-label">{data?.instagram?.comments || 0} Media Posts Published</div>
             </div>
 
@@ -70,8 +63,9 @@ export default function AnalyticsPage() {
                 <h2>LinkedIn Profile</h2>
                 <div className="card-icon"><BarChart2 size={20} /></div>
               </div>
-              <div className="stat-value">{data?.linkedin?.followers || 0} Connections</div>
-              <div className="stat-label">Account: {data?.linkedin?.profile || 'Anantya ai'}</div>
+              <div className="stat-value">{data?.linkedin?.followers || 0}</div>
+              <div className="stat-label" style={{ color: 'var(--text)', fontSize: '0.9rem', fontWeight: 600, marginTop: '4px', marginBottom: '4px' }}>Connections</div>
+              <div className="stat-label">Account: {data?.linkedin?.profile || 'Unknown Account'}</div>
             </div>
 
             <div className="card">
@@ -79,8 +73,9 @@ export default function AnalyticsPage() {
                 <h2>Twitter / X</h2>
                 <div className="card-icon"><PieChart size={20} /></div>
               </div>
-              <div className="stat-value">{data?.twitter?.followers || 0} Followers</div>
-              <div className="stat-label">Account: {data?.twitter?.profile || '@KrishnaSinz3'}</div>
+              <div className="stat-value">{data?.twitter?.followers || 0}</div>
+              <div className="stat-label" style={{ color: 'var(--text)', fontSize: '0.9rem', fontWeight: 600, marginTop: '4px', marginBottom: '4px' }}>Followers</div>
+              <div className="stat-label">Account: {data?.twitter?.profile || 'Unknown Account'}</div>
             </div>
           </div>
 
@@ -105,22 +100,10 @@ export default function AnalyticsPage() {
               </div>
             </div>
 
-            {/* LIVE DAILY SPEND TREND CHART */}
-            <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
-              <h2 style={{ marginBottom: '15px' }}>Live Ad Spend Trend ($)</h2>
-              <div style={{ width: '100%', height: '300px' }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={trendData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                    <XAxis dataKey="day" stroke="var(--text-muted)" />
-                    <YAxis stroke="var(--text-muted)" />
-                    <Tooltip contentStyle={{ background: 'var(--bg-card)', borderColor: 'var(--border)', borderRadius: '8px' }} />
-                    <Legend />
-                    <Line type="monotone" dataKey="spend" stroke="#4f46e5" name="Live Ad Spend ($)" strokeWidth={3} />
-                    <Line type="monotone" dataKey="conversions" stroke="#eab308" name="Conversions" strokeWidth={3} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+            <div className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', color: 'var(--text-muted)' }}>
+              <DollarSign size={40} style={{ marginBottom: '16px', color: 'var(--text-dim)' }} />
+              <h2 style={{ marginBottom: '8px' }}>Live Ad Spend Trend ($)</h2>
+              <p style={{ textAlign: 'center', fontSize: '0.9rem' }}>Connect your Ad accounts and launch campaigns to view live spend and conversion trends.</p>
             </div>
 
           </div>

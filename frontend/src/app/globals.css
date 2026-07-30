@@ -269,33 +269,32 @@ body {
   width: var(--sidebar-w);
   background: #1b1844;
   border-right: 1px solid var(--border);
-  padding: 24px 16px;
+  padding: 0 16px 24px 16px;
   display: flex; flex-direction: column;
   position: fixed; top: 0; left: 0; height: 100vh;
   overflow-y: auto; z-index: 100;
   transition: width 0.3s ease;
 }
-.sidebar.collapsed { width: 80px; padding: 24px 8px; }
+.sidebar.collapsed { width: 80px; padding: 0 8px 24px 8px; }
 
 .sidebar-brand {
   display: flex; align-items: center; gap: 12px;
-  padding: 8px 12px 28px;
-  position: sticky; top: -24px; background: inherit; z-index: 10;
+  padding: 24px 12px 28px;
+  position: sticky; top: 0; background: inherit; z-index: 10;
 }
-.sidebar.collapsed .sidebar-brand { justify-content: center; padding: 8px 0 28px; }
+.sidebar.collapsed .sidebar-brand { justify-content: center; padding: 24px 0 28px; }
 
 .sidebar-brand-icon {
   width: 36px; height: 36px; border-radius: 10px;
-  background: var(--grad);
+  background: transparent;
   display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 4px 12px var(--glow);
+  box-shadow: none;
   flex-shrink: 0;
 }
 .sidebar-brand-text { font-size: 1.1rem; font-weight: 800; letter-spacing: -0.02em; color: var(--text); white-space: nowrap; transition: opacity 0.2s; }
 .sidebar-brand-sub { font-size: 0.7rem; color: var(--text-muted); font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase; white-space: nowrap; transition: opacity 0.2s; }
 
-.sidebar.collapsed .sidebar-brand-text,
-.sidebar.collapsed .sidebar-brand-sub { display: none; }
+.sidebar.collapsed .sidebar-brand-text-container { display: none; }
 
 .sidebar-section-label {
   font-size: 0.68rem; font-weight: 700; color: var(--text-dim);
@@ -315,6 +314,7 @@ body {
   position: relative; white-space: nowrap; overflow: hidden;
 }
 .sidebar.collapsed .sidebar-nav a { padding: 11px; justify-content: center; }
+.sidebar.collapsed .sidebar-nav-label { display: none; }
 
 .sidebar-nav a:hover {
   background: rgba(255,255,255,0.04);
@@ -447,7 +447,7 @@ body {
 .card-icon {
   width: 36px; height: 36px; border-radius: 10px;
   display: flex; align-items: center; justify-content: center;
-  background: rgba(99,102,241,0.1); color: var(--accent);
+  background: transparent; color: var(--accent);
 }
 
 /* ── Stat Cards ───────────────────────────────────────────── */

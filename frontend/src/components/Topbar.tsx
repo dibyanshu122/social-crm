@@ -3,7 +3,7 @@
 import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/lib/theme';
-import { Bell, Search, Command, Sun, Moon, User } from 'lucide-react';
+import { Bell, Search, Command, Sun, Moon, User, LogOut } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 const pageTitles: Record<string, { title: string; subtitle: string }> = {
@@ -25,6 +25,8 @@ export default function Topbar() {
   const [email,    setEmail]    = useState('');
   const [initials, setInitials] = useState('U');
   const [search,   setSearch]   = useState('');
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -96,21 +98,66 @@ export default function Topbar() {
         </button>
 
         {/* Notifications */}
-        <button className="topbar-icon-btn" title="Notifications">
-          <Bell size={17} />
-          <span className="badge">3</span>
-        </button>
+        <div style={{ position: 'relative' }}>
+          <button 
+            className="topbar-icon-btn" 
+            title="Notifications" 
+            onClick={() => setShowNotifications(!showNotifications)}
+          >
+            <Bell size={17} />
+          </button>
+          
+          {showNotifications && (
+            <div style={{
+              position: 'absolute', top: '100%', right: 0, marginTop: '10px',
+              background: 'var(--bg-card)', border: '1px solid var(--border)',
+              borderRadius: '12px', padding: '16px', minWidth: '240px',
+              boxShadow: '0 10px 30px rgba(0,0,0,0.2)', zIndex: 50
+            }}>
+              <h4 style={{ margin: '0 0 10px 0', fontSize: '0.9rem' }}>Notifications</h4>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>No new notifications.</p>
+            </div>
+          )}
+        </div>
 
         {/* User */}
-        <div
-          className="topbar-user"
-          onClick={handleLogout}
-          title="Click to logout"
-          style={{ cursor: 'pointer', padding: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%' }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--accent)', color: 'white', borderRadius: '50%', width: '32px', height: '32px' }}>
-            <User size={18} />
+        <div style={{ position: 'relative' }}>
+          <div
+            className="topbar-user"
+            onClick={() => setShowProfileMenu(!showProfileMenu)}
+            title="Profile Menu"
+            style={{ cursor: 'pointer', padding: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--accent)', color: 'white', borderRadius: '50%', width: '32px', height: '32px' }}>
+              <User size={18} />
+            </div>
           </div>
+
+          {showProfileMenu && (
+            <div style={{
+              position: 'absolute', top: '100%', right: 0, marginTop: '10px',
+              background: 'var(--bg-card)', border: '1px solid var(--border)',
+              borderRadius: '12px', padding: '12px', minWidth: '200px',
+              boxShadow: '0 10px 30px rgba(0,0,0,0.2)', zIndex: 50,
+              display: 'flex', flexDirection: 'column', gap: '8px'
+            }}>
+              <div style={{ padding: '8px', borderBottom: '1px solid var(--border)', marginBottom: '4px' }}>
+                <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>Signed in as</p>
+                <p style={{ margin: '2px 0 0 0', fontSize: '0.9rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis' }}>{email || 'User'}</p>
+              </div>
+              <button 
+                onClick={handleLogout}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px',
+                  borderRadius: '8px', background: 'rgba(239,68,68,0.1)', color: '#ef4444',
+                  border: 'none', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600,
+                  width: '100%'
+                }}
+              >
+                <LogOut size={16} /> Logout
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>

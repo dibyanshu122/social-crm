@@ -50,11 +50,23 @@ export default function Sidebar({ collapsed, onToggle }: { collapsed: boolean; o
       {/* Brand */}
       <div className="sidebar-brand">
         <div className="sidebar-brand-icon">
-          <Zap size={18} color="white" />
+          <div style={{
+            width: '32px', height: '32px', borderRadius: '8px',
+            background: 'transparent',
+            display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignContent: 'center',
+            padding: '4px', gap: '2px'
+          }}>
+            <div style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#3b82f6' }}></div>
+            <div style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#3b82f6' }}></div>
+            <div style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#22c55e' }}></div>
+            <div style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#22c55e' }}></div>
+          </div>
         </div>
-        <div>
-          <div className="sidebar-brand-text">Dot Domino</div>
-          <div className="sidebar-brand-sub">Social CRM</div>
+        <div className="sidebar-brand-text-container">
+          <div className="sidebar-brand-text">
+            <span style={{ color: '#3b82f6' }}>DOT</span> <span style={{ color: '#22c55e' }}>DOMINO</span>
+          </div>
+          <div className="sidebar-brand-sub" style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>SOCIAL CRM PLATFORM</div>
         </div>
       </div>
 
@@ -73,8 +85,8 @@ export default function Sidebar({ collapsed, onToggle }: { collapsed: boolean; o
                   href={item.path}
                   className={isActive ? 'active' : ''}
                 >
-                  <Icon size={17} />
-                  {item.label}
+                  <Icon size={17} style={{ minWidth: '17px' }} />
+                  <span className="sidebar-nav-label">{item.label}</span>
                 </Link>
               );
             })}
@@ -84,15 +96,31 @@ export default function Sidebar({ collapsed, onToggle }: { collapsed: boolean; o
 
       <hr className="sidebar-divider" />
 
-      {/* User Footer with Toggle */}
-      <div className="sidebar-user" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+      <div className="sidebar-toggle-container" style={{ marginTop: 'auto', marginBottom: '10px', width: '100%' }}>
         <button
-          className="btn-ghost"
+          className="sidebar-toggle-btn"
           onClick={onToggle}
           title="Toggle Sidebar"
-          style={{ padding: '8px', border: 'none', background: 'transparent', width: '100%' }}
+          style={{ 
+            display: 'flex', alignItems: 'center', gap: '11px',
+            width: '100%', padding: '11px 12px', borderRadius: '10px',
+            background: 'transparent', border: 'none',
+            color: 'var(--text-muted)', cursor: 'pointer', transition: 'all 0.2s',
+            fontSize: '0.88rem', fontWeight: 500, textAlign: 'left'
+          }}
+          onMouseEnter={(e) => { 
+            e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; 
+            e.currentTarget.style.color = 'var(--text)'; 
+          }}
+          onMouseLeave={(e) => { 
+            e.currentTarget.style.background = 'transparent'; 
+            e.currentTarget.style.color = 'var(--text-muted)'; 
+          }}
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: collapsed ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s' }}><path d="m15 18-6-6 6-6"/></svg>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ minWidth: '17px', transform: collapsed ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s' }}>
+            <path d="m15 18-6-6 6-6"/>
+          </svg>
+          <span className="sidebar-nav-label">Collapse</span>
         </button>
       </div>
     </aside>

@@ -479,10 +479,10 @@ export default function AdsManagerPage() {
             <div style={{ background: 'rgba(79, 70, 229, 0.05)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border)', marginBottom: '20px' }}>
               <div style={{ fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--accent)', marginBottom: '10px' }}>Target Audience Settings</div>
               <div style={{ fontSize: '0.85rem', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <div>📍 <strong>Location:</strong> {selectedCampaignDetails.targetLocation || 'Worldwide'}</div>
-                <div>👤 <strong>Age Range:</strong> {selectedCampaignDetails.targetAgeMin || 18} - {selectedCampaignDetails.targetAgeMax || 65} years</div>
-                <div>⚡ <strong>Gender:</strong> {selectedCampaignDetails.targetGender || 'ALL'}</div>
-                <div>🎯 <strong>Interests:</strong> {Array.isArray(selectedCampaignDetails.targetInterests) && selectedCampaignDetails.targetInterests.length > 0 ? selectedCampaignDetails.targetInterests.join(', ') : 'Technology, Business'}</div>
+                <div>📍 <strong>Location:</strong> {selectedCampaignDetails.targetLocation || 'Not specified'}</div>
+                <div>👤 <strong>Age Range:</strong> {selectedCampaignDetails.targetAgeMin || 'Any'} - {selectedCampaignDetails.targetAgeMax || 'Any'} years</div>
+                <div>⚡ <strong>Gender:</strong> {selectedCampaignDetails.targetGender || 'Any'}</div>
+                <div>🎯 <strong>Interests:</strong> {Array.isArray(selectedCampaignDetails.targetInterests) && selectedCampaignDetails.targetInterests.length > 0 ? selectedCampaignDetails.targetInterests.join(', ') : 'Not specified'}</div>
               </div>
             </div>
 
