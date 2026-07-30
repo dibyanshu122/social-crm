@@ -12,6 +12,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [authenticated, setAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     const check = async () => {
@@ -46,10 +47,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (!authenticated) return null;
 
   return (
-    <div className={`layout-container ${collapsed ? 'sidebar-collapsed' : ''}`}>
-      <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
+    <div className={`layout-container ${collapsed ? 'sidebar-collapsed' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
+      <Sidebar 
+        collapsed={collapsed} 
+        onToggle={() => setCollapsed(!collapsed)} 
+        mobileOpen={mobileOpen}
+        setMobileOpen={setMobileOpen}
+      />
       <div className="dashboard-wrapper">
-        <Topbar />
+        <Topbar onMenuClick={() => setMobileOpen(true)} />
         <main className="main-content">
           {children}
         </main>

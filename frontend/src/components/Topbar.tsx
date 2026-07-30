@@ -3,7 +3,7 @@
 import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/lib/theme';
-import { Bell, Search, Command, Sun, Moon, User, LogOut } from 'lucide-react';
+import { Bell, Search, Command, Sun, Moon, User, LogOut, Menu } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 const pageTitles: Record<string, { title: string; subtitle: string }> = {
@@ -17,7 +17,7 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
   '/settings':     { title: 'Settings',     subtitle: 'Account and team settings' },
 };
 
-export default function Topbar() {
+export default function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const router    = useRouter();
   const pathname  = usePathname();
   const { theme, toggle } = useTheme();
@@ -50,14 +50,18 @@ export default function Topbar() {
     <header className="topbar">
       {/* Left: Page Title */}
       <div className="topbar-left">
+        <button 
+          className="topbar-icon-btn mobile-menu-btn" 
+          onClick={onMenuClick}
+          aria-label="Open menu"
+        >
+          <Menu size={20} />
+        </button>
         <div>
-          <div style={{
-            fontSize: '1rem', fontWeight: 700, letterSpacing: '-0.015em',
-            color: 'var(--text)', lineHeight: 1,
-          }}>
+          <div className="topbar-title">
             {pageInfo.title}
           </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+          <div className="topbar-subtitle">
             {pageInfo.subtitle}
           </div>
         </div>

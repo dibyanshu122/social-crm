@@ -771,10 +771,38 @@ body {
   .social-layout { grid-template-columns: 1fr; }
   .grid-3, .grid-2 { grid-template-columns: 1fr; }
 }
+/* Hide mobile menu button on desktop */
+.mobile-menu-btn { display: none !important; }
+.sidebar-backdrop { display: none; }
+
 @media (max-width: 768px) {
-  .sidebar { transform: translateX(-100%); }
-  .dashboard-wrapper { margin-left: 0; }
+  .mobile-menu-btn { display: flex !important; margin-right: 12px; }
+  
+  .sidebar { 
+    transform: translateX(-100%); 
+    width: 260px !important; /* Force expand on mobile */
+  }
+  .sidebar.mobile-open { transform: translateX(0); box-shadow: 0 0 40px rgba(0,0,0,0.5); }
+  
+  .sidebar-backdrop {
+    display: block;
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
+    z-index: 90;
+  }
+  
+  /* Reset dashboard wrapper so it doesn't get pushed by sidebar */
+  .dashboard-wrapper,
+  .layout-container.sidebar-collapsed .dashboard-wrapper { 
+    margin-left: 0 !important; 
+    width: 100% !important; 
+  }
+  
   .main-content { padding: 20px 16px; }
   .topbar { padding: 0 16px; }
   .grid-4 { grid-template-columns: 1fr; }
+  
+  /* Hide search bar on very small screens to save space */
+  .search-bar { width: 40px; overflow: hidden; padding: 9px; cursor: pointer; }
+  .search-bar input, .search-bar div { display: none; }
 }

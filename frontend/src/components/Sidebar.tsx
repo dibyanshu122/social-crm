@@ -36,7 +36,17 @@ const menuGroups = [
   },
 ];
 
-export default function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
+export default function Sidebar({ 
+  collapsed, 
+  onToggle,
+  mobileOpen,
+  setMobileOpen
+}: { 
+  collapsed: boolean; 
+  onToggle: () => void;
+  mobileOpen?: boolean;
+  setMobileOpen?: (val: boolean) => void;
+}) {
   const pathname = usePathname();
   const router   = useRouter();
   const [hoveredTooltip, setHoveredTooltip] = useState<{ text: string, top: number } | null>(null);
@@ -47,18 +57,27 @@ export default function Sidebar({ collapsed, onToggle }: { collapsed: boolean; o
   };
 
   return (
-    <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
-      {/* Brand */}
-      <div className="sidebar-brand">
-        <div className="sidebar-brand-icon">
-          <div style={{
-            width: '32px', height: '32px', borderRadius: '8px',
-            background: 'transparent',
-            display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignContent: 'center',
-            padding: '4px', gap: '2px'
-          }}>
-            <div style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#3b82f6' }}></div>
-            <div style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#3b82f6' }}></div>
+    <>
+      {/* Mobile Backdrop */}
+      {mobileOpen && (
+        <div 
+          className="sidebar-backdrop"
+          onClick={() => setMobileOpen?.(false)}
+        />
+      )}
+      
+      <aside className={`sidebar ${collapsed ? 'collapsed' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
+        {/* Brand */}
+        <div className="sidebar-brand">
+          <div className="sidebar-brand-icon">
+            <div style={{
+              width: '32px', height: '32px', borderRadius: '8px',
+              background: 'transparent',
+              display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignContent: 'center',
+              padding: '4px', gap: '2px'
+            }}>
+              <div style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#3b82f6' }}></div>
+              <div style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#3b82f6' }}></div>
             <div style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#22c55e' }}></div>
             <div style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#22c55e' }}></div>
           </div>
@@ -164,5 +183,6 @@ export default function Sidebar({ collapsed, onToggle }: { collapsed: boolean; o
         </div>
       )}
     </aside>
+    </>
   );
 }
