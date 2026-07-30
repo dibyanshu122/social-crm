@@ -2,26 +2,29 @@
 
 import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { Bell, Search, Command } from 'lucide-react';
+import { useTheme } from '@/lib/theme';
+import { Bell, Search, Command, Sun, Moon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 const pageTitles: Record<string, { title: string; subtitle: string }> = {
-  '/':            { title: 'Dashboard',    subtitle: 'Overview of your social presence' },
-  '/social':      { title: 'Social Media', subtitle: 'Create and publish posts' },
-  '/ads':         { title: 'Ad Campaigns', subtitle: 'Manage your paid campaigns' },
-  '/leads':       { title: 'CRM Leads',    subtitle: 'Track and manage your leads' },
-  '/analytics':   { title: 'Analytics',    subtitle: 'Performance insights' },
-  '/audience':    { title: 'Audience',     subtitle: 'Connected accounts & reach' },
-  '/integrations':{ title: 'Integrations', subtitle: 'Connect platforms & tools' },
-  '/settings':    { title: 'Settings',     subtitle: 'Account and team settings' },
+  '/':             { title: 'Dashboard',    subtitle: 'Overview of your social presence' },
+  '/social':       { title: 'Social Media', subtitle: 'Create and publish posts' },
+  '/ads':          { title: 'Ad Campaigns', subtitle: 'Manage your paid campaigns' },
+  '/leads':        { title: 'CRM Leads',    subtitle: 'Track and manage your leads' },
+  '/analytics':    { title: 'Analytics',    subtitle: 'Performance insights' },
+  '/audience':     { title: 'Audience',     subtitle: 'Connected accounts & reach' },
+  '/integrations': { title: 'Integrations', subtitle: 'Connect platforms & tools' },
+  '/settings':     { title: 'Settings',     subtitle: 'Account and team settings' },
 };
 
 export default function Topbar() {
-  const router   = useRouter();
-  const pathname = usePathname();
-  const [email, setEmail]       = useState<string>('');
-  const [initials, setInitials] = useState<string>('U');
-  const [search, setSearch]     = useState('');
+  const router    = useRouter();
+  const pathname  = usePathname();
+  const { theme, toggle } = useTheme();
+
+  const [email,    setEmail]    = useState('');
+  const [initials, setInitials] = useState('U');
+  const [search,   setSearch]   = useState('');
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -46,7 +49,10 @@ export default function Topbar() {
       {/* Left: Page Title */}
       <div className="topbar-left">
         <div>
-          <div style={{ fontSize: '1rem', fontWeight: 700, letterSpacing: '-0.015em', color: 'var(--text)', lineHeight: 1 }}>
+          <div style={{
+            fontSize: '1rem', fontWeight: 700, letterSpacing: '-0.015em',
+            color: 'var(--text)', lineHeight: 1,
+          }}>
             {pageInfo.title}
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
@@ -66,10 +72,28 @@ export default function Topbar() {
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
-          <div style={{ display: 'flex', alignItems: 'center', gap: '2px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)', borderRadius: '5px', padding: '2px 6px', color: 'var(--text-muted)', fontSize: '0.68rem' }}>
-            <Command size={10} /> K
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '2px',
+            background: 'var(--bg-input)', border: '1px solid var(--border)',
+            borderRadius: '5px', padding: '2px 6px',
+            color: 'var(--text-muted)', fontSize: '0.68rem',
+          }}>
+            <Command size={10} />&nbsp;K
           </div>
         </div>
+
+        {/* ── Theme Toggle ── */}
+        <button
+          className="topbar-icon-btn theme-toggle-btn"
+          onClick={toggle}
+          title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          aria-label="Toggle theme"
+        >
+          {theme === 'dark'
+            ? <Sun  size={17} style={{ color: '#f59e0b' }} />
+            : <Moon size={17} style={{ color: '#6366f1' }} />
+          }
+        </button>
 
         {/* Notifications */}
         <button className="topbar-icon-btn" title="Notifications">
@@ -78,7 +102,12 @@ export default function Topbar() {
         </button>
 
         {/* User */}
-        <div className="topbar-user" onClick={handleLogout} title="Click to logout" style={{ cursor: 'pointer' }}>
+        <div
+          className="topbar-user"
+          onClick={handleLogout}
+          title="Click to logout"
+          style={{ cursor: 'pointer' }}
+        >
           <div className="topbar-avatar">{initials}</div>
           <span className="topbar-email">{email || 'Admin'}</span>
         </div>
