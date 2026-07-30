@@ -15,6 +15,7 @@
   --bg-input:       #0d1220;
   --border:         rgba(255,255,255,0.07);
   --border-light:   rgba(255,255,255,0.04);
+  --border-hover:   rgba(255,255,255,0.2);
 
   --text:           #f1f5f9;
   --text-muted:     #64748b;
@@ -58,6 +59,7 @@
   --bg-input:       #f0f2f8;
   --border:         rgba(0,0,0,0.08);
   --border-light:   rgba(0,0,0,0.04);
+  --border-hover:   rgba(99,102,241,0.4);
 
   --text:           #0f172a;
   --text-muted:     #64748b;
@@ -269,7 +271,7 @@ body {
 /* ── Sidebar ──────────────────────────────────────────────── */
 .sidebar {
   width: var(--sidebar-w);
-  background: var(--bg-card);
+  background: linear-gradient(180deg, rgba(99,102,241,0.08) 0%, var(--bg-card) 40%);
   border-right: 1px solid var(--border);
   padding: 24px 16px;
   display: flex; flex-direction: column;
@@ -437,7 +439,7 @@ body {
   transition: all 0.25s ease;
   animation: fadeUp 0.4s ease both;
 }
-.card:hover { border-color: rgba(255,255,255,0.1); transform: translateY(-1px); box-shadow: var(--shadow-md); }
+.card:hover { border-color: var(--border-hover); transform: translateY(-1px); box-shadow: var(--shadow-md); }
 .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
 .card-header h2 { font-size: 1rem; font-weight: 700; letter-spacing: -0.01em; }
 .card-icon {
@@ -454,7 +456,7 @@ body {
   transition: all 0.25s ease;
   animation: fadeUp 0.4s ease both;
 }
-.stat-card:hover { border-color: rgba(255,255,255,0.1); transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.stat-card:hover { border-color: var(--border-hover); transform: translateY(-2px); box-shadow: var(--shadow-md); }
 .stat-card-icon {
   width: 44px; height: 44px; border-radius: 12px;
   display: flex; align-items: center; justify-content: center;

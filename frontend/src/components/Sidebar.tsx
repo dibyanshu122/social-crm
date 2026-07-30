@@ -95,19 +95,16 @@ export default function Sidebar() {
 
       <hr className="sidebar-divider" />
 
-      {/* User Footer */}
-      <div className="sidebar-user">
-        <div className="sidebar-avatar">{initials}</div>
-        <div className="sidebar-user-info">
-          <div className="sidebar-user-name truncate">{email || 'Admin'}</div>
-          <div className="sidebar-user-role">Administrator</div>
-        </div>
+      {/* User Footer (Removed email as requested) */}
+      <div className="sidebar-user" style={{ display: 'flex', justifyContent: 'center' }}>
         <button
-          className="sidebar-logout-btn"
+          className="btn-ghost"
           onClick={handleLogout}
           title="Logout"
+          style={{ width: '100%', gap: '8px' }}
         >
           <LogOut size={16} />
+          <span>Logout</span>
         </button>
       </div>
     </aside>

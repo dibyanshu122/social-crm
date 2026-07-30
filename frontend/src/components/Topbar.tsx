@@ -3,7 +3,7 @@
 import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/lib/theme';
-import { Bell, Search, Command, Sun, Moon } from 'lucide-react';
+import { Bell, Search, Command, Sun, Moon, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 const pageTitles: Record<string, { title: string; subtitle: string }> = {
@@ -106,10 +106,12 @@ export default function Topbar() {
           className="topbar-user"
           onClick={handleLogout}
           title="Click to logout"
-          style={{ cursor: 'pointer' }}
+          style={{ cursor: 'pointer', padding: '6px 16px', display: 'flex', alignItems: 'center', gap: '10px' }}
         >
-          <div className="topbar-avatar">{initials}</div>
-          <span className="topbar-email">{email || 'Admin'}</span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--accent)', color: 'white', borderRadius: '50%', width: '28px', height: '28px' }}>
+            <User size={16} />
+          </div>
+          <span className="topbar-email" style={{ fontWeight: 500, fontSize: '0.85rem' }}>{email || 'admin@socialcrm.com'}</span>
         </div>
       </div>
     </header>
