@@ -95,13 +95,13 @@ export default function AccountsPage() {
             {/* Custom Avatar with Initial */}
             <div style={{ 
               width: '40px', height: '40px', borderRadius: '50%', background: brandBg, color: brandColor,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.1rem'
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.1rem', flexShrink: 0
             }}>
               {data.profile.charAt(0).toUpperCase()}
             </div>
-            <div>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: '600', margin: 0 }}>{data.profile}</h3>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', margin: 0, textTransform: 'capitalize' }}>{platform} Account</p>
+            <div style={{ overflow: 'hidden' }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: '600', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{data.profile}</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', margin: 0, textTransform: 'capitalize', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{platform} Account</p>
             </div>
           </div>
 
@@ -114,8 +114,8 @@ export default function AccountsPage() {
           display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.8rem', 
           color: data.followers > 0 ? '#16a34a' : 'var(--text-muted)', fontWeight: '500', marginTop: '10px'
         }}>
-          <ArrowUpRight size={14} />
-          <span>{growthText}</span>
+          <ArrowUpRight size={14} style={{ flexShrink: 0 }} />
+          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{growthText}</span>
         </div>
       </div>
     );
