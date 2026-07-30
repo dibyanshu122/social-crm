@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Send, Clock, Image as ImageIcon, Facebook, Linkedin, Twitter, Instagram, UploadCloud, X, ChevronDown } from 'lucide-react';
-import { fetchAPI } from '@/lib/apiClient';
+import { fetchAPI, getBackendUrl } from '@/lib/apiClient';
+import { supabase } from '@/lib/supabase';
 
 export default function SocialMediaPage() {
   const [content, setContent] = useState('');
