@@ -262,7 +262,7 @@ export const getAnalytics = async (req: Request, res: Response) => {
           followers = 0;
         }
         analytics.totalFollowers += followers;
-        analytics.linkedin = { followers, impressions: 5300, engagementRate: '4.2%', profile: acc.accountName };
+        analytics.linkedin = { followers, impressions: 0, engagementRate: '0%', profile: acc.accountName };
       }
       else if (acc.platform === 'twitter') {
         try {
@@ -277,24 +277,21 @@ export const getAnalytics = async (req: Request, res: Response) => {
             followers, 
             following: metrics.following_count,
             tweets: metrics.tweet_count,
-            retweets: Math.floor(followers * 0.12),
-            impressions: Math.floor(followers * 12.5),
+            retweets: 0,
+            impressions: 0,
             profile: acc.accountName 
           };
         } catch (err: any) {
           console.error('Failed to fetch Twitter public metrics:', err.response?.data || err.message);
-          const isUser = acc.accountName === '@KrishnaSinz3';
-          const followers = isUser ? 13 : 0;
           analytics.twitter = { 
-            followers, 
-            following: isUser ? 13 : 0,
-            tweets: isUser ? 5 : 0,
-            retweets: Math.floor(followers * 0.12),
-            impressions: Math.floor(followers * 12.5),
+            followers: 0, 
+            following: 0,
+            tweets: 0,
+            retweets: 0,
+            impressions: 0,
             profile: acc.accountName,
             error: 'Twitter API credits depleted'
           };
-          analytics.totalFollowers += followers;
         }
       }
     }));
