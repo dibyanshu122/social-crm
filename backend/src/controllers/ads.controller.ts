@@ -269,6 +269,29 @@ export const toggleCampaignStatus = async (req: Request, res: Response) => {
   }
 };
 
+// Delete Campaign (Requires ADMIN)
+export const deleteCampaign = async (req: Request, res: Response) => {
+  const userId = req.user?.id as string;
+  const accountId = req.params.accountId as string;
+  const campaignId = req.params.campaignId as string;
+
+  try {
+    const account = await prisma.adAccount.findFirst({ where: { id: accountId, userId } });
+    if (!account) return res.status(404).json({ error: 'Ad account not found' });
+    if (account.userRole?.toUpperCase() !== 'ADMIN') return res.status(403).json({ error: 'Forbidden: Only Admins can delete campaigns' });
+
+    await prisma.adCampaign.delete({
+      where: { campaignId }
+    });
+
+    console.log(`Deleted campaign ${campaignId} on ${account.platform}`);
+    return res.status(200).json({ message: 'Campaign deleted successfully' });
+  } catch (error: any) {
+    console.error('Delete campaign error:', error);
+    return res.status(500).json({ error: error.message || 'Failed to delete campaign' });
+  }
+};
+
 // Get Ad Account Analytics (Spend, Conversions, CTR)
 export const getAdAnalytics = async (req: Request, res: Response) => {
   const userId = req.user?.id as string;
