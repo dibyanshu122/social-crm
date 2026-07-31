@@ -180,17 +180,33 @@ export class FacebookService {
       });
       const adSetId = adSetRes.data.id;
 
-      // 3. Media & Creative
-      // For simplicity in this demo, if media URL exists we just use a placeholder hash or the user's page image, 
-      // as Facebook adimages endpoint requires multipart/form-data upload which is tricky to do robustly here.
-      // If we had a real image hash, we would create an Ad Creative:
+      // 3. Media & Creative Image Upload
+      let imageHash = 'placeholder_hash_123';
+      if (campaignData.adMediaUrl) {
+        try {
+          const FormData = require('form-data');
+          const imageRes = await axios.get(campaignData.adMediaUrl, { responseType: 'arraybuffer' });
+          const form = new FormData();
+          form.append('filename', Buffer.from(imageRes.data), 'ad_image.jpg');
+          form.append('access_token', this.pageAccessToken);
+          
+          const uploadRes = await axios.post(`https://graph.facebook.com/v21.0/${actId}/adimages`, form, {
+            headers: form.getHeaders()
+          });
+          imageHash = uploadRes.data.images['ad_image.jpg'].hash;
+          console.log('Successfully uploaded image to Meta, Hash:', imageHash);
+        } catch(e: any) {
+          console.error('Failed to upload image to Meta:', e.message);
+        }
+      }
+
       const creativeRes = await axios.post(`https://graph.facebook.com/v21.0/${actId}/adcreatives`, null, {
         params: {
           name: `${campaignData.name} - Creative`,
           object_story_spec: JSON.stringify({
             page_id: campaignData.pageId || 'mock_page_id',
             link_data: {
-              image_hash: 'placeholder_hash_123', // Typically obtained from /adimages
+              image_hash: imageHash,
               link: campaignData.adLinkUrl || 'https://google.com',
               message: campaignData.adText || 'Check this out!',
               name: campaignData.adHeadline || 'Great Offer'
@@ -198,7 +214,7 @@ export class FacebookService {
           }),
           access_token: this.pageAccessToken
         }
-      }).catch(err => { console.log('Mocking Creative (No valid image_hash)'); return { data: { id: `mock_creative_${Date.now()}` }}; });
+      }).catch(err => { console.log('Creative failed due to invalid page ID or permissions. Mocking.'); return { data: { id: `mock_creative_${Date.now()}` }}; });
       
       const creativeId = creativeRes.data.id;
 
@@ -211,7 +227,7 @@ export class FacebookService {
           status: 'PAUSED',
           access_token: this.pageAccessToken
         }
-      }).catch(err => { console.log('Mocking Ad'); return { data: { id: `mock_ad_${Date.now()}` }}; });
+      }).catch(err => { console.log('Ad creation failed. Mocking.'); return { data: { id: `mock_ad_${Date.now()}` }}; });
 
       console.log(`Successfully created Meta Ads campaign ${campaignId}`);
       return { id: campaignId };

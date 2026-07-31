@@ -4,12 +4,14 @@ import { useState, useEffect, useRef } from 'react';
 import { Activity, Edit2, Play, Pause, TrendingUp, DollarSign, Plus, Loader2, X, Lock, ShieldAlert, Check, Trash2, UploadCloud } from 'lucide-react';
 import { fetchAPI, getBackendUrl } from '@/lib/apiClient';
 import { supabase } from '@/lib/supabase';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 export default function AdsManagerPage() {
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [accounts, setAccounts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [totals, setTotals] = useState({ spend: 0, conversions: 0 });
+  const [totals, setTotals] = useState({ spend: 0, conversions: 0, clicks: 0, impressions: 0 });
+  const [activeTab, setActiveTab] = useState<'campaigns' | 'analytics'>('campaigns');
 
   // New Campaign Modal State
   const [showModal, setShowModal] = useState(false);
@@ -50,6 +52,8 @@ export default function AdsManagerPage() {
         let accCampaigns: any[] = [];
         let accSpend = 0;
         let accConversions = 0;
+        let accClicks = 0;
+        let accImpressions = 0;
 
         try {
           // Fetch campaigns and analytics concurrently for each account
@@ -73,23 +77,34 @@ export default function AdsManagerPage() {
             accSpend = analyticsRes.analytics.totalSpend || 0;
             accConversions = analyticsRes.analytics.conversions || 0;
           }
+
+          accCampaigns.forEach((c: any) => {
+            accClicks += c.clicks || 0;
+            accImpressions += c.impressions || 0;
+            accConversions += c.conversions || 0;
+          });
         } catch (error) {
           console.error(`Error fetching data for account ${acc.id}:`, error);
         }
 
-        return { campaigns: accCampaigns, spend: accSpend, conversions: accConversions };
+        return { campaigns: accCampaigns, spend: accSpend, conversions: accConversions, clicks: accClicks, impressions: accImpressions };
       });
 
       const results = await Promise.all(accountPromises);
+      
+      let totalClicks = 0;
+      let totalImpressions = 0;
       
       for (const res of results) {
         allCampaigns = [...allCampaigns, ...res.campaigns];
         totalSpend += res.spend;
         totalConversions += res.conversions;
+        totalClicks += res.clicks;
+        totalImpressions += res.impressions;
       }
       
       setCampaigns(allCampaigns);
-      setTotals({ spend: totalSpend, conversions: totalConversions });
+      setTotals({ spend: totalSpend, conversions: totalConversions, clicks: totalClicks, impressions: totalImpressions });
     } catch (err) {
       console.error('Failed to load ads', err);
     } finally {
@@ -267,29 +282,142 @@ export default function AdsManagerPage() {
           <h1>Ads Control Panel</h1>
           <p>Manage budgets, monitor spend, and toggle active campaigns.</p>
         </div>
-        <button className="btn-primary" onClick={() => setShowModal(true)}>
-          <Plus size={18} /> New Campaign
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button className="btn-primary" onClick={() => setShowModal(true)}>
+            <Plus size={18} /> New Campaign
+          </button>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: '20px', marginBottom: '30px', borderBottom: '1px solid var(--border)' }}>
+        <button 
+          onClick={() => setActiveTab('campaigns')}
+          style={{ 
+            padding: '10px 15px', 
+            background: 'none', 
+            border: 'none', 
+            borderBottom: activeTab === 'campaigns' ? '2px solid var(--primary)' : '2px solid transparent',
+            color: activeTab === 'campaigns' ? 'var(--primary)' : 'var(--text-muted)',
+            fontWeight: activeTab === 'campaigns' ? '600' : '400',
+            cursor: 'pointer',
+            fontSize: '1rem'
+          }}
+        >
+          Campaigns
+        </button>
+        <button 
+          onClick={() => setActiveTab('analytics')}
+          style={{ 
+            padding: '10px 15px', 
+            background: 'none', 
+            border: 'none', 
+            borderBottom: activeTab === 'analytics' ? '2px solid var(--primary)' : '2px solid transparent',
+            color: activeTab === 'analytics' ? 'var(--primary)' : 'var(--text-muted)',
+            fontWeight: activeTab === 'analytics' ? '600' : '400',
+            cursor: 'pointer',
+            fontSize: '1rem'
+          }}
+        >
+          Analytics Dashboard
         </button>
       </div>
 
-      <div className="dashboard-grid" style={{ marginBottom: '30px' }}>
-        <div className="card">
-          <div className="card-header">
-            <h2>Total Ad Spend</h2>
-            <div className="card-icon"><DollarSign size={20} /></div>
+      {activeTab === 'analytics' ? (
+        <>
+          <div className="dashboard-grid" style={{ marginBottom: '30px' }}>
+            <div className="card">
+              <div className="card-header">
+                <h2>Total Ad Spend</h2>
+                <div className="card-icon"><DollarSign size={20} /></div>
+              </div>
+              <div className="stat-value">${totals.spend.toFixed(2)}</div>
+              <div className="stat-label">This billing cycle</div>
+            </div>
+            <div className="card">
+              <div className="card-header">
+                <h2>Total Conversions</h2>
+                <div className="card-icon"><TrendingUp size={20} /></div>
+              </div>
+              <div className="stat-value">{totals.conversions}</div>
+              <div className="stat-label">Total Leads Generated</div>
+            </div>
+            <div className="card">
+              <div className="card-header">
+                <h2>Total Clicks</h2>
+                <div className="card-icon"><TrendingUp size={20} /></div>
+              </div>
+              <div className="stat-value">{totals.clicks}</div>
+              <div className="stat-label">Across all campaigns</div>
+            </div>
+            <div className="card">
+              <div className="card-header">
+                <h2>Total Impressions</h2>
+                <div className="card-icon"><TrendingUp size={20} /></div>
+              </div>
+              <div className="stat-value">{totals.impressions}</div>
+              <div className="stat-label">Total Views</div>
+            </div>
           </div>
-          <div className="stat-value">${totals.spend.toFixed(2)}</div>
-          <div className="stat-label">This billing cycle</div>
-        </div>
-        <div className="card">
-          <div className="card-header">
-            <h2>Total Conversions</h2>
-            <div className="card-icon"><TrendingUp size={20} /></div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '20px', marginBottom: '30px' }}>
+            <div className="card">
+              <h2 style={{ marginBottom: '20px' }}>Impressions vs Clicks</h2>
+              <div style={{ width: '100%', height: '300px' }}>
+                <ResponsiveContainer>
+                  <BarChart data={campaigns} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                    <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={12} tickFormatter={(val) => val.substring(0, 10) + '...'} />
+                    <YAxis yAxisId="left" orientation="left" stroke="#8884d8" fontSize={12} />
+                    <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" fontSize={12} />
+                    <Tooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px' }} />
+                    <Legend />
+                    <Bar yAxisId="left" dataKey="impressions" name="Impressions" fill="#8884d8" radius={[4, 4, 0, 0]} />
+                    <Bar yAxisId="right" dataKey="clicks" name="Clicks" fill="#82ca9d" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div className="card">
+              <h2 style={{ marginBottom: '20px' }}>Performance (CPC & CTR)</h2>
+              <div style={{ width: '100%', height: '300px' }}>
+                <ResponsiveContainer>
+                  <BarChart data={campaigns} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                    <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={12} tickFormatter={(val) => val.substring(0, 10) + '...'} />
+                    <YAxis yAxisId="left" orientation="left" stroke="#ff7300" fontSize={12} />
+                    <YAxis yAxisId="right" orientation="right" stroke="#387908" fontSize={12} />
+                    <Tooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px' }} />
+                    <Legend />
+                    <Bar yAxisId="left" dataKey="cpc" name="Cost Per Click ($)" fill="#ff7300" radius={[4, 4, 0, 0]} />
+                    <Bar yAxisId="right" dataKey="ctr" name="Click-Through Rate (%)" fill="#387908" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
           </div>
-          <div className="stat-value">{totals.conversions}</div>
-          <div className="stat-label">Across all connected platforms</div>
-        </div>
-      </div>
+        </>
+      ) : (
+        <>
+          <div className="dashboard-grid" style={{ marginBottom: '30px' }}>
+            <div className="card">
+              <div className="card-header">
+                <h2>Total Ad Spend</h2>
+                <div className="card-icon"><DollarSign size={20} /></div>
+              </div>
+              <div className="stat-value">${totals.spend.toFixed(2)}</div>
+              <div className="stat-label">This billing cycle</div>
+            </div>
+            <div className="card">
+              <div className="card-header">
+                <h2>Total Conversions</h2>
+                <div className="card-icon"><TrendingUp size={20} /></div>
+              </div>
+              <div className="stat-value">{totals.conversions}</div>
+              <div className="stat-label">Across all connected platforms</div>
+            </div>
+          </div>
 
       <div className="card">
         <h2 style={{ marginBottom: '20px' }}>Active Campaigns</h2>
@@ -305,9 +433,13 @@ export default function AdsManagerPage() {
                   <th>Account</th>
                   <th>Role</th>
                   <th>Platform</th>
-                  <th>Daily Budget</th>
+                  <th>Budget</th>
                   <th>Spend</th>
-                  <th>Conversions</th>
+                  <th>Imp.</th>
+                  <th>Clicks</th>
+                  <th>CPC</th>
+                  <th>CTR</th>
+                  <th>Leads</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
@@ -347,7 +479,11 @@ export default function AdsManagerPage() {
                         )}
                       </td>
                       <td>${campaign.spend.toFixed(2)}</td>
-                      <td>{campaign.conversions}</td>
+                      <td>{campaign.impressions || 0}</td>
+                      <td>{campaign.clicks || 0}</td>
+                      <td>${Number(campaign.cpc || 0).toFixed(2)}</td>
+                      <td>{Number(campaign.ctr || 0).toFixed(2)}%</td>
+                      <td>{campaign.conversions || 0}</td>
                       <td>
                         <span className={`status-badge ${campaign.status.toLowerCase()}`}>
                           {campaign.status}
@@ -397,6 +533,8 @@ export default function AdsManagerPage() {
           </div>
         )}
       </div>
+      </>
+      )}
 
       {/* New Campaign Modal Dialog */}
       {showModal && (
