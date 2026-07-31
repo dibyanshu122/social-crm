@@ -36,28 +36,46 @@ export default function AdsManagerPage() {
       let totalSpend = 0;
       let totalConversions = 0;
 
-      for (const acc of adAccs || []) {
-        // Fetch campaigns for each account
-        const { campaigns: campData } = await fetchAPI(`/ads/accounts/${acc.id}/campaigns`);
-        if (campData) {
-          // Append platform and role to campaign object for UI
-          const campsWithPlatform = campData.map((c: any) => ({
-            ...c, 
-            platform: acc.platform, 
-            accountId: acc.id, 
-            accountName: acc.accountName, 
-            userRole: acc.userRole || 'EMPLOYEE',
-            conversions: c.conversions || Math.floor(c.spend * 0.1)
-          }));
-          allCampaigns = [...allCampaigns, ...campsWithPlatform];
+      const accountPromises = (adAccs || []).map(async (acc: any) => {
+        let accCampaigns: any[] = [];
+        let accSpend = 0;
+        let accConversions = 0;
+
+        try {
+          // Fetch campaigns and analytics concurrently for each account
+          const [campRes, analyticsRes] = await Promise.all([
+            fetchAPI(`/ads/accounts/${acc.id}/campaigns`).catch(() => ({ campaigns: [] })),
+            fetchAPI(`/ads/accounts/${acc.id}/analytics`).catch(() => ({ analytics: null }))
+          ]);
+
+          if (campRes.campaigns) {
+            accCampaigns = campRes.campaigns.map((c: any) => ({
+              ...c, 
+              platform: acc.platform, 
+              accountId: acc.id, 
+              accountName: acc.accountName, 
+              userRole: acc.userRole || 'EMPLOYEE',
+              conversions: c.conversions || Math.floor(c.spend * 0.1)
+            }));
+          }
+
+          if (analyticsRes.analytics) {
+            accSpend = analyticsRes.analytics.totalSpend || 0;
+            accConversions = analyticsRes.analytics.conversions || 0;
+          }
+        } catch (error) {
+          console.error(`Error fetching data for account ${acc.id}:`, error);
         }
 
-        // Fetch analytics to aggregate totals
-        const { analytics } = await fetchAPI(`/ads/accounts/${acc.id}/analytics`);
-        if (analytics) {
-          totalSpend += analytics.totalSpend || 0;
-          totalConversions += analytics.conversions || 0;
-        }
+        return { campaigns: accCampaigns, spend: accSpend, conversions: accConversions };
+      });
+
+      const results = await Promise.all(accountPromises);
+      
+      for (const res of results) {
+        allCampaigns = [...allCampaigns, ...res.campaigns];
+        totalSpend += res.spend;
+        totalConversions += res.conversions;
       }
       
       setCampaigns(allCampaigns);

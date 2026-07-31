@@ -297,7 +297,7 @@ export const getAnalytics = async (req: Request, res: Response) => {
           analytics.totalFollowers += followers;
         }
       }
-    }
+    }));
 
     return res.status(200).json({ analytics });
   } catch (error) {
