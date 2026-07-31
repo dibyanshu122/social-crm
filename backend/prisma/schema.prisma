@@ -91,9 +91,22 @@ model AdCampaign {
   targetAgeMax    Int?     @default(65)
   targetGender    String?  @default("ALL")
   targetInterests String[] @default([])
+  
+  adHeadline      String?
+  adText          String?
+  adMediaUrl      String?
+  adLinkUrl       String?
+
+  impressions     Int      @default(0)
+  clicks          Int      @default(0)
+  cpc             Float    @default(0.0)
+  ctr             Float    @default(0.0)
+  conversions     Int      @default(0)
+
   createdAt       DateTime @default(now())
 
   adAccount AdAccount @relation(fields: [adAccountId], references: [id], onDelete: Cascade)
+  leads     Lead[]
 
   @@map("ad_campaigns")
 }
@@ -108,9 +121,11 @@ model Lead {
   formName  String?  @default("Instant Lead Form")
   status    String   @default("NEW") // NEW, CONTACTED, CONVERTED
   notes     String?
+  adCampaignId String? @db.Uuid
   createdAt DateTime @default(now())
 
   profile Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  adCampaign AdCampaign? @relation(fields: [adCampaignId], references: [id], onDelete: SetNull)
 
   @@map("leads")
 }

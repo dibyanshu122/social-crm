@@ -8,6 +8,7 @@ import socialRoutes from './routes/social.routes';
 import adsRoutes from './routes/ads.routes';
 import oauthRoutes from './routes/oauth.routes';
 import leadsRoutes from './routes/leads.routes';
+import webhooksRoutes from './routes/webhooks.routes';
 import { startScheduler } from './services/scheduler';
 
 dotenv.config();
@@ -29,6 +30,7 @@ app.use('/api/v1/social', socialRoutes);
 app.use('/api/v1/ads', adsRoutes);
 app.use('/api/v1/oauth', oauthRoutes);
 app.use('/api/v1/leads', leadsRoutes);
+app.use('/api/v1/webhooks', webhooksRoutes);
 
 // Basic health check routes
 app.get('/', (req: Request, res: Response) => {

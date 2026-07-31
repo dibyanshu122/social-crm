@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Activity, Edit2, Play, Pause, TrendingUp, DollarSign, Plus, Loader2, X, Lock, ShieldAlert, Check, Trash2 } from 'lucide-react';
-import { fetchAPI } from '@/lib/apiClient';
+import { useState, useEffect, useRef } from 'react';
+import { Activity, Edit2, Play, Pause, TrendingUp, DollarSign, Plus, Loader2, X, Lock, ShieldAlert, Check, Trash2, UploadCloud } from 'lucide-react';
+import { fetchAPI, getBackendUrl } from '@/lib/apiClient';
+import { supabase } from '@/lib/supabase';
 
 export default function AdsManagerPage() {
   const [campaigns, setCampaigns] = useState<any[]>([]);
@@ -22,6 +23,15 @@ export default function AdsManagerPage() {
   const [targetInterests, setTargetInterests] = useState('Technology, Business');
   const [creating, setCreating] = useState(false);
   const [selectedCampaignDetails, setSelectedCampaignDetails] = useState<any>(null);
+
+  // Ad Creative Content States
+  const [adHeadline, setAdHeadline] = useState('');
+  const [adText, setAdText] = useState('');
+  const [adLinkUrl, setAdLinkUrl] = useState('');
+  const [mediaFile, setMediaFile] = useState<File | null>(null);
+  const [mediaPreviewUrl, setMediaPreviewUrl] = useState('');
+  const [uploadingMedia, setUploadingMedia] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadAds = async () => {
     try {
@@ -149,6 +159,20 @@ export default function AdsManagerPage() {
     }
   };
 
+  const handleMediaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setMediaFile(file);
+      setMediaPreviewUrl(URL.createObjectURL(file));
+    }
+  };
+
+  const clearMedia = () => {
+    setMediaFile(null);
+    setMediaPreviewUrl('');
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   const handleCreateCampaign = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedAdAccount) return alert("Please select an ad account.");
@@ -158,7 +182,31 @@ export default function AdsManagerPage() {
     if (!newCampName || !newCampBudget) return alert("Please enter campaign name and budget.");
 
     setCreating(true);
+    let uploadedMediaUrl = '';
+
     try {
+      if (mediaFile) {
+        setUploadingMedia(true);
+        const formData = new FormData();
+        formData.append('media', mediaFile);
+        
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token || '';
+        const backendUrl = getBackendUrl();
+        const uploadRes = await fetch(`${backendUrl}/api/v1/social/upload`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
+          body: formData
+        });
+        
+        const uploadData = await uploadRes.json();
+        if (!uploadRes.ok) throw new Error(uploadData.error || 'Upload failed');
+        uploadedMediaUrl = uploadData.url;
+        setUploadingMedia(false);
+      }
+
       await fetchAPI(`/ads/accounts/${selectedAdAccount}/campaigns`, {
         method: 'POST',
         body: JSON.stringify({
@@ -169,12 +217,20 @@ export default function AdsManagerPage() {
           targetAgeMin: Number(targetAgeMin),
           targetAgeMax: Number(targetAgeMax),
           targetGender,
-          targetInterests: targetInterests.split(',').map(s => s.trim()).filter(Boolean)
+          targetInterests: targetInterests.split(',').map(s => s.trim()).filter(Boolean),
+          adHeadline,
+          adText,
+          adLinkUrl,
+          adMediaUrl: uploadedMediaUrl
         })
       });
       setShowModal(false);
       setNewCampName('');
       setNewCampBudget('');
+      setAdHeadline('');
+      setAdText('');
+      setAdLinkUrl('');
+      clearMedia();
       
       // Reload campaigns
       setLoading(true);
@@ -183,6 +239,7 @@ export default function AdsManagerPage() {
       alert(err.message || 'Failed to create campaign');
     } finally {
       setCreating(false);
+      setUploadingMedia(false);
       setLoading(false);
     }
   };
@@ -464,6 +521,59 @@ export default function AdsManagerPage() {
                 <div>
                   <label style={{ fontSize: '0.8rem', fontWeight: '500' }}>Targeted Interests (Comma Separated)</label>
                   <input type="text" value={targetInterests} onChange={(e) => setTargetInterests(e.target.value)} placeholder="Business, Tech, E-commerce" style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '0.85rem' }} />
+                </div>
+              </div>
+
+              {/* Ad Creative & Content */}
+              <div style={{ padding: '12px', background: 'rgba(236, 72, 153, 0.05)', borderRadius: '10px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#ec4899' }}>Ad Creative & Content</div>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: '500' }}>Headline</label>
+                  <input type="text" value={adHeadline} onChange={(e) => setAdHeadline(e.target.value)} placeholder="e.g. 50% Off Winter Sale!" style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '0.85rem' }} />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: '500' }}>Primary Text</label>
+                  <textarea value={adText} onChange={(e) => setAdText(e.target.value)} placeholder="Tell your audience about your offer..." style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '0.85rem', minHeight: '60px' }} />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: '500' }}>Destination URL</label>
+                  <input type="url" value={adLinkUrl} onChange={(e) => setAdLinkUrl(e.target.value)} placeholder="https://yourwebsite.com/offer" style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '0.85rem' }} />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: '500' }}>Ad Image / Video</label>
+                  <div style={{ border: '2px dashed var(--accent)', borderRadius: '12px', padding: '10px', textAlign: 'center', cursor: 'pointer', position: 'relative', background: 'rgba(79, 70, 229, 0.05)' }}>
+                    <input 
+                      type="file" 
+                      accept="image/*,video/*"
+                      style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }}
+                      onChange={handleMediaChange}
+                      ref={fileInputRef}
+                    />
+                    {mediaPreviewUrl ? (
+                      <div style={{ position: 'relative', display: 'inline-block' }}>
+                        {mediaFile?.type.startsWith('video') ? (
+                          <video src={mediaPreviewUrl} controls style={{ maxHeight: '100px', borderRadius: '8px', maxWidth: '100%' }} />
+                        ) : (
+                          <img src={mediaPreviewUrl} alt="Preview" style={{ maxHeight: '100px', borderRadius: '8px' }} />
+                        )}
+                        <button 
+                          onClick={(e) => { e.preventDefault(); clearMedia(); }}
+                          style={{ position: 'absolute', top: '-6px', right: '-6px', background: 'red', color: 'white', border: 'none', borderRadius: '50%', padding: '4px', cursor: 'pointer', zIndex: 10 }}
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ color: 'var(--accent)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '10px 0' }}>
+                        <UploadCloud size={24} style={{ marginBottom: '6px' }} />
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>Drag & drop or click to browse</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 

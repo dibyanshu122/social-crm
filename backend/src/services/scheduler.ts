@@ -80,4 +80,54 @@ export function startScheduler() {
       console.error('Error in cron job:', err.message);
     }
   });
+  // Sync Ad Analytics every 2 hours
+  cron.schedule('0 */2 * * *', async () => {
+    try {
+      console.log('Running Ad Analytics Sync...');
+      const activeCampaigns = await prisma.adCampaign.findMany({
+        where: { status: 'ACTIVE' },
+        include: { adAccount: true }
+      });
+
+      for (const campaign of activeCampaigns) {
+        try {
+          const account = campaign.adAccount;
+          let metrics = { impressions: 0, clicks: 0, cpc: 0, ctr: 0, conversions: 0 };
+
+          if (account.platform === 'google') {
+            const refreshToken = account.encryptedRefreshToken ? decrypt(account.encryptedRefreshToken) : '';
+            const googleService = new (require('./google-ads.service').GoogleAdsService)();
+            metrics = await googleService.getAdMetrics(account.adAccountId, refreshToken, campaign.campaignId);
+          } else if (account.platform === 'facebook' || account.platform === 'meta') {
+            const accessToken = account.encryptedAccessToken ? decrypt(account.encryptedAccessToken) : '';
+            const fbService = new FacebookService(accessToken);
+            metrics = await fbService.getAdMetrics(campaign.campaignId);
+          } else if (account.platform === 'linkedin') {
+            const accessToken = account.encryptedAccessToken ? decrypt(account.encryptedAccessToken) : '';
+            const { LinkedinService } = require('./linkedin.service');
+            const linkedinService = new LinkedinService(accessToken);
+            metrics = await linkedinService.getAdMetrics(campaign.campaignId);
+          }
+
+          if (metrics.impressions > 0 || metrics.clicks > 0) {
+            await prisma.adCampaign.update({
+              where: { id: campaign.id },
+              data: {
+                impressions: metrics.impressions,
+                clicks: metrics.clicks,
+                cpc: metrics.cpc,
+                ctr: metrics.ctr,
+                conversions: metrics.conversions
+              }
+            });
+            console.log(`Synced metrics for campaign ${campaign.campaignId}`);
+          }
+        } catch (err: any) {
+          console.error(`Failed to sync campaign ${campaign.campaignId}:`, err.message);
+        }
+      }
+    } catch (err: any) {
+      console.error('Error in Ad Analytics cron job:', err.message);
+    }
+  });
 }

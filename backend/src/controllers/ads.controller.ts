@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { encrypt, decrypt } from '../utils/encryption';
 import { GoogleAdsService } from '../services/google-ads.service';
+import { FacebookService } from '../services/facebook.service';
+import { LinkedinService } from '../services/linkedin.service';
 
 const prisma = new PrismaClient();
 const googleAdsService = new GoogleAdsService();
@@ -165,7 +167,7 @@ export const getCampaigns = async (req: Request, res: Response) => {
 export const createCampaign = async (req: Request, res: Response) => {
   const userId = req.user?.id as string;
   const accountId = req.params.accountId as string;
-  const { name, budget, status, targetLocation, targetAgeMin, targetAgeMax, targetGender, targetInterests } = req.body;
+  const { name, budget, status, targetLocation, targetAgeMin, targetAgeMax, targetGender, targetInterests, adHeadline, adText, adMediaUrl, adLinkUrl } = req.body;
 
   if (!name || budget === undefined) {
     return res.status(400).json({ error: 'Campaign Name and Budget are required.' });
@@ -176,12 +178,28 @@ export const createCampaign = async (req: Request, res: Response) => {
     if (!account) return res.status(404).json({ error: 'Ad account not found' });
     if (account.userRole?.toUpperCase() !== 'ADMIN') return res.status(403).json({ error: 'Forbidden: Only Admins can create new campaigns' });
 
-    const localCampaignId = `camp_${Date.now()}`;
+    let finalCampaignId = `camp_${Date.now()}`;
+
+    if (account.platform === 'google') {
+      const refreshToken = account.encryptedRefreshToken ? decrypt(account.encryptedRefreshToken) : '';
+      const result = await googleAdsService.createCampaign(account.adAccountId, refreshToken, req.body);
+      finalCampaignId = result.id;
+    } else if (account.platform === 'facebook' || account.platform === 'meta') {
+      const accessToken = account.encryptedAccessToken ? decrypt(account.encryptedAccessToken) : '';
+      const facebookService = new FacebookService(accessToken);
+      const result = await facebookService.createAdCampaign(account.adAccountId, req.body);
+      finalCampaignId = result.id;
+    } else if (account.platform === 'linkedin') {
+      const accessToken = account.encryptedAccessToken ? decrypt(account.encryptedAccessToken) : '';
+      const linkedinService = new LinkedinService(accessToken);
+      const result = await linkedinService.createCampaign(req.body);
+      finalCampaignId = result.id;
+    }
 
     const campaign = await prisma.adCampaign.create({
       data: {
         adAccountId: account.id,
-        campaignId: localCampaignId,
+        campaignId: finalCampaignId,
         name,
         budget: Number(budget),
         spend: 0,
@@ -190,14 +208,18 @@ export const createCampaign = async (req: Request, res: Response) => {
         targetAgeMin: targetAgeMin ? Number(targetAgeMin) : 18,
         targetAgeMax: targetAgeMax ? Number(targetAgeMax) : 65,
         targetGender: targetGender || 'ALL',
-        targetInterests: Array.isArray(targetInterests) ? targetInterests : []
+        targetInterests: Array.isArray(targetInterests) ? targetInterests : [],
+        adHeadline: adHeadline || null,
+        adText: adText || null,
+        adMediaUrl: adMediaUrl || null,
+        adLinkUrl: adLinkUrl || null
       }
     });
 
     return res.status(201).json({ message: 'Campaign created successfully', campaign });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating campaign:', error);
-    return res.status(500).json({ error: 'Failed to create campaign' });
+    return res.status(500).json({ error: error.message || 'Failed to create campaign' });
   }
 };
 

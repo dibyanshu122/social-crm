@@ -109,4 +109,119 @@ export class GoogleAdsService {
       throw new Error('Failed to toggle Google Ads campaign status');
     }
   }
+
+  async createCampaign(customerId: string, refreshToken: string, campaignData: any): Promise<{ id: string }> {
+    if (!this.isConfigured || !this.client) {
+      console.log(`[MOCK GOOGLE ADS] Creating full campaign for ${customerId}`, campaignData);
+      return { id: `mock_google_camp_${Date.now()}` };
+    }
+
+    try {
+      const customer = this.client.Customer({
+        customer_id: customerId,
+        refresh_token: refreshToken,
+      });
+
+      // 1. Create Budget
+      const budgetAmount = Math.round(campaignData.budget * 1000000);
+      const budgetResponse = await customer.campaignBudgets.create([{
+        amount_micros: budgetAmount,
+        explicitly_shared: false,
+      }]);
+      const budgetResource = budgetResponse.results[0].resource_name;
+
+      // 2. Create Campaign
+      const campaignResponse = await customer.campaigns.create([{
+        name: campaignData.name,
+        campaign_budget: budgetResource,
+        advertising_channel_type: enums.AdvertisingChannelType.DISPLAY,
+        status: enums.CampaignStatus.PAUSED,
+        network_settings: { target_content_network: true }
+      }]);
+      const campaignResource = campaignResponse.results[0].resource_name || '';
+      const campaignId = campaignResource.split('/').pop() as string;
+
+      // 3. Create Ad Group
+      const adGroupResponse = await customer.adGroups.create([{
+        campaign: campaignResource,
+        name: `${campaignData.name} - Ad Group`,
+        type: enums.AdGroupType.DISPLAY_STANDARD,
+        status: enums.AdGroupStatus.ENABLED,
+      }]);
+      const adGroupResource = adGroupResponse.results[0].resource_name;
+
+      // 4. Handle Media / Asset
+      let imageAssetResource = '';
+      if (campaignData.adMediaUrl) {
+        const axios = require('axios');
+        const imageRes = await axios.get(campaignData.adMediaUrl, { responseType: 'arraybuffer' });
+        const imageBase64 = Buffer.from(imageRes.data, 'binary').toString('base64');
+        const assetResponse = await customer.assets.create([{
+          type: enums.AssetType.IMAGE,
+          image_asset: { data: imageBase64 }
+        }]);
+        imageAssetResource = assetResponse.results[0].resource_name || '';
+      }
+
+      // 5. Create AdGroup Ad
+      if (campaignData.adHeadline && campaignData.adText && campaignData.adLinkUrl && imageAssetResource) {
+        await customer.adGroupAds.create([{
+          ad_group: adGroupResource,
+          status: enums.AdGroupAdStatus.ENABLED,
+          ad: {
+            final_urls: [campaignData.adLinkUrl],
+            responsive_display_ad: {
+              headlines: [{ text: campaignData.adHeadline.substring(0, 30) }],
+              descriptions: [{ text: campaignData.adText.substring(0, 90) }],
+              business_name: "Social CRM",
+              marketing_images: [{ asset: imageAssetResource }]
+            }
+          }
+        }]);
+      }
+
+      console.log(`Successfully created Google Ads campaign ${campaignId}`);
+      return { id: campaignId };
+    } catch (error: any) {
+      console.error('Error creating Google Ads campaign:', error?.message || error);
+      throw new Error('Failed to create Google Ads campaign');
+    }
+  }
+
+  async getAdMetrics(customerId: string, refreshToken: string, campaignId: string): Promise<{ impressions: number, clicks: number, cpc: number, ctr: number, conversions: number }> {
+    if (!this.isConfigured || !this.client || campaignId.startsWith('mock_')) {
+      return {
+        impressions: Math.floor(Math.random() * 10000),
+        clicks: Math.floor(Math.random() * 500),
+        cpc: Number((Math.random() * 2).toFixed(2)),
+        ctr: Number((Math.random() * 5).toFixed(2)),
+        conversions: Math.floor(Math.random() * 50)
+      };
+    }
+
+    try {
+      const customer = this.client.Customer({
+        customer_id: customerId,
+        refresh_token: refreshToken,
+      });
+
+      const metrics = await customer.query(`
+        SELECT metrics.impressions, metrics.clicks, metrics.average_cpc, metrics.ctr, metrics.conversions
+        FROM campaign 
+        WHERE campaign.id = ${campaignId}
+      `);
+
+      const data = metrics[0]?.metrics || {};
+      return {
+        impressions: Number(data.impressions) || 0,
+        clicks: Number(data.clicks) || 0,
+        cpc: data.average_cpc ? Number(data.average_cpc) / 1000000 : 0,
+        ctr: Number(data.ctr) || 0,
+        conversions: Number(data.conversions) || 0
+      };
+    } catch (error) {
+      console.error('Error fetching Google Ad Metrics:', error);
+      return { impressions: 0, clicks: 0, cpc: 0, ctr: 0, conversions: 0 };
+    }
+  }
 }
