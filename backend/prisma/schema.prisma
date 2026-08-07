@@ -107,9 +107,54 @@ model AdCampaign {
 
   adAccount AdAccount @relation(fields: [adAccountId], references: [id], onDelete: Cascade)
   leads     Lead[]
+  adSets    AdSet[]
 
   @@map("ad_campaigns")
 }
+
+model AdSet {
+  id              String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  adSetId         String   @unique
+  campaignId      String   @db.Uuid
+  name            String
+  budget          Float    @default(10)
+  status          String   @default("PAUSED")
+  targetLocation  String?  @default("Worldwide")
+  targetAgeMin    Int?     @default(18)
+  targetAgeMax    Int?     @default(65)
+  targetGender    String?  @default("ALL")
+  targetInterests String[] @default([])
+  impressions     Int      @default(0)
+  clicks          Int      @default(0)
+  spend           Float    @default(0)
+  createdAt       DateTime @default(now())
+
+  campaign AdCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  ads      Ad[]
+
+  @@map("ad_sets")
+}
+
+model Ad {
+  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  adId      String   @unique
+  adSetId   String   @db.Uuid
+  name      String
+  status    String   @default("PAUSED")
+  headline  String?
+  text      String?
+  mediaUrl  String?
+  linkUrl   String?
+  impressions Int    @default(0)
+  clicks    Int      @default(0)
+  spend     Float    @default(0)
+  createdAt DateTime @default(now())
+
+  adSet AdSet @relation(fields: [adSetId], references: [id], onDelete: Cascade)
+
+  @@map("ads")
+}
+
 
 model Lead {
   id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid

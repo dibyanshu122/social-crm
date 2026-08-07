@@ -1,790 +1,699 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Activity, Edit2, Play, Pause, TrendingUp, DollarSign, Plus, Loader2, X, Lock, ShieldAlert, Check, Trash2, UploadCloud } from 'lucide-react';
+import {
+  ChevronDown, ChevronRight, Play, Pause, Plus, Loader2, X,
+  Lock, ShieldAlert, Trash2, UploadCloud, TrendingUp, DollarSign,
+  BarChart2, Target, Image, Edit2, Layers
+} from 'lucide-react';
 import { fetchAPI, getBackendUrl } from '@/lib/apiClient';
 import { supabase } from '@/lib/supabase';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+interface AdAccount { id: string; platform: string; accountName: string; userRole: string; adAccountId: string; }
+interface Campaign  { id: string; name: string; status: string; budget: number; spend: number; impressions: number; clicks: number; cpc: number; ctr: number; conversions: number; accountId: string; accountName: string; platform: string; userRole: string; }
+interface AdSet     { id: string; adSetId: string; name: string; status: string; budget: number; targetLocation: string; targetAgeMin: number; targetAgeMax: number; targetGender: string; ads?: Ad[]; }
+interface Ad        { id: string; adId: string; name: string; status: string; headline: string; text: string; mediaUrl: string; linkUrl: string; }
+
+type ModalType = 'campaign' | 'adset' | 'ad' | null;
+
 export default function AdsManagerPage() {
-  const [campaigns, setCampaigns] = useState<any[]>([]);
-  const [accounts, setAccounts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [totals, setTotals] = useState({ spend: 0, conversions: 0, clicks: 0, impressions: 0 });
-  const [activeTab, setActiveTab] = useState<'campaigns' | 'analytics'>('campaigns');
+  const [accounts, setAccounts]       = useState<AdAccount[]>([]);
+  const [campaigns, setCampaigns]     = useState<Campaign[]>([]);
+  const [loading, setLoading]         = useState(true);
+  const [totals, setTotals]           = useState({ spend: 0, conversions: 0, clicks: 0, impressions: 0 });
+  const [activeTab, setActiveTab]     = useState<'campaigns' | 'analytics'>('campaigns');
 
-  // New Campaign Modal State
-  const [showModal, setShowModal] = useState(false);
-  const [newCampName, setNewCampName] = useState('');
-  const [newCampBudget, setNewCampBudget] = useState('');
-  const [selectedAdAccount, setSelectedAdAccount] = useState('');
-  const [targetLocation, setTargetLocation] = useState('Worldwide');
-  const [targetAgeMin, setTargetAgeMin] = useState('18');
-  const [targetAgeMax, setTargetAgeMax] = useState('65');
-  const [targetGender, setTargetGender] = useState('ALL');
-  const [targetInterests, setTargetInterests] = useState('Technology, Business');
-  const [creating, setCreating] = useState(false);
-  const [selectedCampaignDetails, setSelectedCampaignDetails] = useState<any>(null);
+  // Expanded state
+  const [expandedCampaigns, setExpandedCampaigns] = useState<Record<string, boolean>>({});
+  const [expandedAdSets, setExpandedAdSets]       = useState<Record<string, boolean>>({});
+  const [adSetsMap, setAdSetsMap]                 = useState<Record<string, AdSet[]>>({});
+  const [loadingAdSets, setLoadingAdSets]         = useState<Record<string, boolean>>({});
 
-  // Ad Creative Content States
+  // Modal state
+  const [modalType, setModalType]                 = useState<ModalType>(null);
+  const [activeCampaign, setActiveCampaign]       = useState<Campaign | null>(null);
+  const [activeAdSet, setActiveAdSet]             = useState<AdSet | null>(null);
+  const [submitting, setSubmitting]               = useState(false);
+
+  // Campaign form
+  const [campName, setCampName]       = useState('');
+  const [campBudget, setCampBudget]   = useState('50');
+  const [campAccount, setCampAccount] = useState('');
+
+  // Ad Set form
+  const [asName, setAsName]               = useState('');
+  const [asBudget, setAsBudget]           = useState('10');
+  const [asLocation, setAsLocation]       = useState('Worldwide');
+  const [asAgeMin, setAsAgeMin]           = useState('18');
+  const [asAgeMax, setAsAgeMax]           = useState('65');
+  const [asGender, setAsGender]           = useState('ALL');
+  const [asInterests, setAsInterests]     = useState('');
+
+  // Ad form
+  const [adName, setAdName]       = useState('');
   const [adHeadline, setAdHeadline] = useState('');
-  const [adText, setAdText] = useState('');
-  const [adLinkUrl, setAdLinkUrl] = useState('');
-  const [mediaFile, setMediaFile] = useState<File | null>(null);
-  const [mediaPreviewUrl, setMediaPreviewUrl] = useState('');
+  const [adText, setAdText]       = useState('');
+  const [adLink, setAdLink]       = useState('');
+  const [adMediaFile, setAdMediaFile] = useState<File | null>(null);
+  const [adMediaPreview, setAdMediaPreview] = useState('');
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const loadAds = async () => {
+  // ── Load accounts + campaigns ──────────────────────────────────────────────
+  const loadData = async () => {
+    setLoading(true);
     try {
-      const { accounts: adAccs } = await fetchAPI('/ads/accounts');
-      setAccounts(adAccs || []);
-      
-      if (adAccs && adAccs.length > 0) {
-        setSelectedAdAccount(prev => prev || adAccs[0].id);
-      }
-      
-      let allCampaigns: any[] = [];
-      let totalSpend = 0;
-      let totalConversions = 0;
+      const { accounts: accs } = await fetchAPI('/ads/accounts');
+      const adAccs: AdAccount[] = accs || [];
+      setAccounts(adAccs);
+      if (adAccs.length > 0) setCampAccount(prev => prev || adAccs[0].id);
 
-      const accountPromises = (adAccs || []).map(async (acc: any) => {
-        let accCampaigns: any[] = [];
-        let accSpend = 0;
-        let accConversions = 0;
-        let accClicks = 0;
-        let accImpressions = 0;
+      let allCamps: Campaign[] = [];
+      let totalSpend = 0, totalConversions = 0, totalClicks = 0, totalImpressions = 0;
 
+      await Promise.all(adAccs.map(async (acc) => {
         try {
-          // Fetch campaigns and analytics concurrently for each account
           const [campRes, analyticsRes] = await Promise.all([
             fetchAPI(`/ads/accounts/${acc.id}/campaigns`).catch(() => ({ campaigns: [] })),
             fetchAPI(`/ads/accounts/${acc.id}/analytics`).catch(() => ({ analytics: null }))
           ]);
 
-          if (campRes.campaigns) {
-            accCampaigns = campRes.campaigns.map((c: any) => ({
-              ...c, 
-              platform: acc.platform, 
-              accountId: acc.id, 
-              accountName: acc.accountName, 
-              userRole: acc.userRole || 'EMPLOYEE',
-              conversions: c.conversions || Math.floor(c.spend * 0.1)
-            }));
-          }
+          const camps: Campaign[] = (campRes.campaigns || []).map((c: any) => ({
+            ...c,
+            platform: acc.platform,
+            accountId: acc.id,
+            accountName: acc.accountName,
+            userRole: acc.userRole || 'EMPLOYEE',
+            impressions: c.impressions || 0,
+            clicks: c.clicks || 0,
+            cpc: c.cpc || 0,
+            ctr: c.ctr || 0,
+            conversions: c.conversions || 0,
+          }));
 
-          if (analyticsRes.analytics) {
-            accSpend = analyticsRes.analytics.totalSpend || 0;
-            accConversions = analyticsRes.analytics.conversions || 0;
-          }
+          allCamps = [...allCamps, ...camps];
+          totalSpend       += analyticsRes.analytics?.totalSpend || 0;
+          totalConversions += analyticsRes.analytics?.conversions || 0;
+          camps.forEach(c => { totalClicks += c.clicks; totalImpressions += c.impressions; });
+        } catch (_) {}
+      }));
 
-          accCampaigns.forEach((c: any) => {
-            accClicks += c.clicks || 0;
-            accImpressions += c.impressions || 0;
-            accConversions += c.conversions || 0;
-          });
-        } catch (error) {
-          console.error(`Error fetching data for account ${acc.id}:`, error);
-        }
-
-        return { campaigns: accCampaigns, spend: accSpend, conversions: accConversions, clicks: accClicks, impressions: accImpressions };
-      });
-
-      const results = await Promise.all(accountPromises);
-      
-      let totalClicks = 0;
-      let totalImpressions = 0;
-      
-      for (const res of results) {
-        allCampaigns = [...allCampaigns, ...res.campaigns];
-        totalSpend += res.spend;
-        totalConversions += res.conversions;
-        totalClicks += res.clicks;
-        totalImpressions += res.impressions;
-      }
-      
-      setCampaigns(allCampaigns);
+      setCampaigns(allCamps);
       setTotals({ spend: totalSpend, conversions: totalConversions, clicks: totalClicks, impressions: totalImpressions });
     } catch (err) {
-      console.error('Failed to load ads', err);
+      console.error('Failed to load ads data', err);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadAds();
-  }, []);
+  useEffect(() => { loadData(); }, []);
 
-  const checkIsAdmin = (accountId: string) => {
-    const acc = accounts.find(a => a.id === accountId);
-    return acc?.userRole?.toUpperCase() === 'ADMIN';
-  };
+  // ── Toggle campaign expand → load ad sets ─────────────────────────────────
+  const toggleCampaign = async (campaign: Campaign) => {
+    const key = campaign.id;
+    const isExpanded = expandedCampaigns[key];
+    setExpandedCampaigns(prev => ({ ...prev, [key]: !isExpanded }));
 
-  const toggleStatus = async (accountId: string, id: string, currentStatus: string) => {
-    if (!checkIsAdmin(accountId)) {
-      alert("Permission Denied: Only Admins can modify campaign status.");
-      return;
-    }
-    const newStatus = currentStatus === 'ACTIVE' ? 'PAUSED' : 'ACTIVE';
-    try {
-      await fetchAPI(`/ads/accounts/${accountId}/campaigns/${id}/status`, {
-        method: 'PUT',
-        body: JSON.stringify({ status: newStatus })
-      });
-      setCampaigns(prev => prev.map(c => c.id === id ? { ...c, status: newStatus } : c));
-    } catch (err: any) {
-      alert(err.message);
-    }
-  };
-
-  const handleEditBudget = async (accountId: string, id: string) => {
-    if (!checkIsAdmin(accountId)) {
-      alert("Permission Denied: Only Admins can modify ad budgets.");
-      return;
-    }
-    const newBudget = prompt("Enter new daily budget:");
-    if (newBudget && !isNaN(Number(newBudget))) {
+    if (!isExpanded && !adSetsMap[key]) {
+      setLoadingAdSets(prev => ({ ...prev, [key]: true }));
       try {
-        await fetchAPI(`/ads/accounts/${accountId}/campaigns/${id}/budget`, {
-          method: 'PUT',
-          body: JSON.stringify({ newBudget: Number(newBudget) })
-        });
-        setCampaigns(prev => prev.map(c => c.id === id ? { ...c, budget: Number(newBudget) } : c));
-      } catch (err: any) {
-        alert(err.message);
+        const res = await fetchAPI(`/ads/accounts/${campaign.accountId}/campaigns/${campaign.id}/adsets`);
+        setAdSetsMap(prev => ({ ...prev, [key]: res.adSets || [] }));
+      } catch (_) {
+        setAdSetsMap(prev => ({ ...prev, [key]: [] }));
+      } finally {
+        setLoadingAdSets(prev => ({ ...prev, [key]: false }));
       }
     }
   };
 
-  const handleDeleteCampaign = async (accountId: string, id: string) => {
-    if (!checkIsAdmin(accountId)) {
-      alert("Permission Denied: Only Admins can delete campaigns.");
-      return;
-    }
-    if (!confirm("Are you sure you want to delete this campaign? This action cannot be undone.")) return;
-    
+  // ── Toggle adset expand (already loaded) ──────────────────────────────────
+  const toggleAdSet = (adSetId: string) => {
+    setExpandedAdSets(prev => ({ ...prev, [adSetId]: !prev[adSetId] }));
+  };
+
+  // ── Check admin ───────────────────────────────────────────────────────────
+  const isAdmin = (campaign: Campaign) => campaign.userRole?.toUpperCase() === 'ADMIN';
+
+  // ── Toggle campaign status ─────────────────────────────────────────────────
+  const toggleStatus = async (campaign: Campaign) => {
+    const newStatus = campaign.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE';
     try {
-      await fetchAPI(`/ads/accounts/${accountId}/campaigns/${id}`, {
-        method: 'DELETE'
+      await fetchAPI(`/ads/accounts/${campaign.accountId}/campaigns/${campaign.id}/status`, {
+        method: 'PUT', body: JSON.stringify({ status: newStatus })
       });
-      setCampaigns(prev => prev.filter(c => c.id !== id));
-    } catch (err: any) {
-      alert(err.message || "Failed to delete campaign");
-    }
+      setCampaigns(prev => prev.map(c => c.id === campaign.id ? { ...c, status: newStatus } : c));
+    } catch (err: any) { alert(err.message); }
   };
 
-  const handleMediaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setMediaFile(file);
-      setMediaPreviewUrl(URL.createObjectURL(file));
-    }
+  // ── Delete campaign ────────────────────────────────────────────────────────
+  const deleteCampaign = async (campaign: Campaign) => {
+    if (!confirm('Delete this campaign?')) return;
+    try {
+      await fetchAPI(`/ads/accounts/${campaign.accountId}/campaigns/${campaign.id}`, { method: 'DELETE' });
+      setCampaigns(prev => prev.filter(c => c.id !== campaign.id));
+    } catch (err: any) { alert(err.message); }
   };
 
-  const clearMedia = () => {
-    setMediaFile(null);
-    setMediaPreviewUrl('');
-    if (fileInputRef.current) fileInputRef.current.value = '';
+  // ── Delete Ad Set ──────────────────────────────────────────────────────────
+  const deleteAdSet = async (campaign: Campaign, adSet: AdSet) => {
+    if (!confirm('Delete this Ad Set?')) return;
+    try {
+      await fetchAPI(`/ads/accounts/${campaign.accountId}/campaigns/${campaign.id}/adsets/${adSet.adSetId}`, { method: 'DELETE' });
+      setAdSetsMap(prev => ({
+        ...prev,
+        [campaign.id]: (prev[campaign.id] || []).filter(a => a.adSetId !== adSet.adSetId)
+      }));
+    } catch (err: any) { alert(err.message); }
   };
 
-  const handleCreateCampaign = async (e: React.FormEvent) => {
+  // ── Delete Ad ──────────────────────────────────────────────────────────────
+  const deleteAdItem = async (campaign: Campaign, adSet: AdSet, ad: Ad) => {
+    if (!confirm('Delete this Ad?')) return;
+    try {
+      await fetchAPI(`/ads/accounts/${campaign.accountId}/campaigns/${campaign.id}/adsets/${adSet.adSetId}/ads/${ad.adId}`, { method: 'DELETE' });
+      setAdSetsMap(prev => ({
+        ...prev,
+        [campaign.id]: (prev[campaign.id] || []).map(as =>
+          as.adSetId === adSet.adSetId ? { ...as, ads: (as.ads || []).filter(a => a.adId !== ad.adId) } : as
+        )
+      }));
+    } catch (err: any) { alert(err.message); }
+  };
+
+  // ── Submit: Create Campaign ────────────────────────────────────────────────
+  const submitCampaign = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedAdAccount) return alert("Please select an ad account.");
-    if (!checkIsAdmin(selectedAdAccount)) {
-      return alert("Permission Denied: You do not have Admin permissions on this account.");
-    }
-    if (!newCampName || !newCampBudget) return alert("Please enter campaign name and budget.");
+    if (!campName || !campBudget || !campAccount) return alert('Please fill all fields');
+    setSubmitting(true);
+    try {
+      await fetchAPI(`/ads/accounts/${campAccount}/campaigns`, {
+        method: 'POST', body: JSON.stringify({ name: campName, budget: Number(campBudget), status: 'PAUSED' })
+      });
+      setModalType(null); setCampName(''); setCampBudget('50');
+      await loadData();
+    } catch (err: any) { alert(err.message); }
+    finally { setSubmitting(false); }
+  };
 
-    setCreating(true);
+  // ── Submit: Create Ad Set ─────────────────────────────────────────────────
+  const submitAdSet = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!asName || !activeCampaign) return;
+    setSubmitting(true);
+    try {
+      const res = await fetchAPI(`/ads/accounts/${activeCampaign.accountId}/campaigns/${activeCampaign.id}/adsets`, {
+        method: 'POST',
+        body: JSON.stringify({
+          name: asName, budget: Number(asBudget),
+          targetLocation: asLocation, targetAgeMin: Number(asAgeMin),
+          targetAgeMax: Number(asAgeMax), targetGender: asGender,
+          targetInterests: asInterests.split(',').map(s => s.trim()).filter(Boolean)
+        })
+      });
+      setAdSetsMap(prev => ({
+        ...prev,
+        [activeCampaign.id]: [...(prev[activeCampaign.id] || []), res.adSet]
+      }));
+      setModalType(null); setAsName(''); setAsBudget('10'); setAsInterests('');
+    } catch (err: any) { alert(err.message); }
+    finally { setSubmitting(false); }
+  };
+
+  // ── Submit: Create Ad ─────────────────────────────────────────────────────
+  const submitAd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!adName || !activeCampaign || !activeAdSet) return;
+    setSubmitting(true);
     let uploadedMediaUrl = '';
 
     try {
-      if (mediaFile) {
+      if (adMediaFile) {
         setUploadingMedia(true);
         const formData = new FormData();
-        formData.append('media', mediaFile);
-        
+        formData.append('media', adMediaFile);
         const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token || '';
-        const backendUrl = getBackendUrl();
-        const uploadRes = await fetch(`${backendUrl}/api/v1/social/upload`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          },
-          body: formData
+        const uploadRes = await fetch(`${getBackendUrl()}/api/v1/social/upload`, {
+          method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: formData
         });
-        
         const uploadData = await uploadRes.json();
         if (!uploadRes.ok) throw new Error(uploadData.error || 'Upload failed');
         uploadedMediaUrl = uploadData.url;
         setUploadingMedia(false);
       }
 
-      await fetchAPI(`/ads/accounts/${selectedAdAccount}/campaigns`, {
-        method: 'POST',
-        body: JSON.stringify({
-          name: newCampName,
-          budget: Number(newCampBudget),
-          status: 'PAUSED',
-          targetLocation,
-          targetAgeMin: Number(targetAgeMin),
-          targetAgeMax: Number(targetAgeMax),
-          targetGender,
-          targetInterests: targetInterests.split(',').map(s => s.trim()).filter(Boolean),
-          adHeadline,
-          adText,
-          adLinkUrl,
-          adMediaUrl: uploadedMediaUrl
-        })
-      });
-      setShowModal(false);
-      setNewCampName('');
-      setNewCampBudget('');
-      setAdHeadline('');
-      setAdText('');
-      setAdLinkUrl('');
-      clearMedia();
-      
-      // Reload campaigns
-      setLoading(true);
-      await loadAds();
-    } catch (err: any) {
-      alert(err.message || 'Failed to create campaign');
-    } finally {
-      setCreating(false);
-      setUploadingMedia(false);
-      setLoading(false);
-    }
+      const res = await fetchAPI(
+        `/ads/accounts/${activeCampaign.accountId}/campaigns/${activeCampaign.id}/adsets/${activeAdSet.adSetId}/ads`,
+        { method: 'POST', body: JSON.stringify({ name: adName, headline: adHeadline, text: adText, linkUrl: adLink, mediaUrl: uploadedMediaUrl }) }
+      );
+
+      setAdSetsMap(prev => ({
+        ...prev,
+        [activeCampaign.id]: (prev[activeCampaign.id] || []).map(as =>
+          as.adSetId === activeAdSet.adSetId ? { ...as, ads: [...(as.ads || []), res.ad] } : as
+        )
+      }));
+      setModalType(null); setAdName(''); setAdHeadline(''); setAdText(''); setAdLink(''); setAdMediaFile(null); setAdMediaPreview('');
+    } catch (err: any) { alert(err.message); }
+    finally { setSubmitting(false); setUploadingMedia(false); }
   };
 
-  const selectedAccountDetails = accounts.find(a => a.id === selectedAdAccount);
-  const selectedAccountIsAdmin = selectedAccountDetails?.userRole?.toUpperCase() === 'ADMIN';
+  const platformColor = (p: string) => {
+    if (p === 'facebook' || p === 'meta') return '#1877F2';
+    if (p === 'google') return '#EA4335';
+    if (p === 'linkedin') return '#0A66C2';
+    return '#6366f1';
+  };
 
-  if (loading) {
-    return <div className="loading-state">Loading Ads Data...</div>;
-  }
+  const platformLabel = (p: string) => {
+    if (p === 'facebook') return 'Meta';
+    if (p === 'google') return 'Google';
+    if (p === 'linkedin') return 'LinkedIn';
+    return p;
+  };
 
-  if (accounts.length === 0) {
-    return (
-      <div className="page-header">
-        <h1>Ads Control Panel</h1>
-        <p>You have not connected any Ad accounts. Go to Accounts to connect Meta or Google Ads.</p>
-      </div>
-    );
-  }
+  if (loading) return <div className="loading-state">Loading Ads Manager...</div>;
+
+  if (accounts.length === 0) return (
+    <div className="page-header">
+      <h1>Ads Manager</h1>
+      <p>No Ad accounts connected. Go to <strong>Integrations</strong> to connect Meta or Google Ads.</p>
+    </div>
+  );
+
+  const tabStyle = (tab: string) => ({
+    padding: '10px 20px', background: 'none', border: 'none',
+    borderBottom: activeTab === tab ? '2px solid var(--primary)' : '2px solid transparent',
+    color: activeTab === tab ? 'var(--primary)' : 'var(--text-muted)',
+    fontWeight: activeTab === tab ? '600' : '400',
+    cursor: 'pointer', fontSize: '0.95rem', transition: 'all 0.2s'
+  } as React.CSSProperties);
 
   return (
     <>
+      {/* ── Page Header ── */}
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h1>Ads Control Panel</h1>
-          <p>Manage budgets, monitor spend, and toggle active campaigns.</p>
+          <h1>Ads Manager</h1>
+          <p>Campaign → Ad Set → Ad — full hierarchy for Meta &amp; Google</p>
         </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button className="btn-primary" onClick={() => setShowModal(true)}>
-            <Plus size={18} /> New Campaign
-          </button>
-        </div>
+        <button className="btn-primary" onClick={() => setModalType('campaign')}>
+          <Plus size={18} /> New Campaign
+        </button>
       </div>
 
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: '20px', marginBottom: '30px', borderBottom: '1px solid var(--border)' }}>
-        <button 
-          onClick={() => setActiveTab('campaigns')}
-          style={{ 
-            padding: '10px 15px', 
-            background: 'none', 
-            border: 'none', 
-            borderBottom: activeTab === 'campaigns' ? '2px solid var(--primary)' : '2px solid transparent',
-            color: activeTab === 'campaigns' ? 'var(--primary)' : 'var(--text-muted)',
-            fontWeight: activeTab === 'campaigns' ? '600' : '400',
-            cursor: 'pointer',
-            fontSize: '1rem'
-          }}
-        >
-          Campaigns
+      {/* ── Tabs ── */}
+      <div style={{ display: 'flex', gap: '5px', marginBottom: '28px', borderBottom: '1px solid var(--border)' }}>
+        <button style={tabStyle('campaigns')} onClick={() => setActiveTab('campaigns')}>
+          <Layers size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />Campaigns
         </button>
-        <button 
-          onClick={() => setActiveTab('analytics')}
-          style={{ 
-            padding: '10px 15px', 
-            background: 'none', 
-            border: 'none', 
-            borderBottom: activeTab === 'analytics' ? '2px solid var(--primary)' : '2px solid transparent',
-            color: activeTab === 'analytics' ? 'var(--primary)' : 'var(--text-muted)',
-            fontWeight: activeTab === 'analytics' ? '600' : '400',
-            cursor: 'pointer',
-            fontSize: '1rem'
-          }}
-        >
-          Analytics Dashboard
+        <button style={tabStyle('analytics')} onClick={() => setActiveTab('analytics')}>
+          <BarChart2 size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />Analytics
         </button>
       </div>
 
       {activeTab === 'analytics' ? (
+        /* ─── ANALYTICS TAB ─── */
         <>
-          <div className="dashboard-grid" style={{ marginBottom: '30px' }}>
-            <div className="card">
-              <div className="card-header">
-                <h2>Total Ad Spend</h2>
-                <div className="card-icon"><DollarSign size={20} /></div>
+          <div className="dashboard-grid" style={{ marginBottom: '28px' }}>
+            {[
+              { label: 'Total Ad Spend', value: `$${totals.spend.toFixed(2)}`, sub: 'This billing cycle', icon: <DollarSign size={20} /> },
+              { label: 'Total Clicks', value: totals.clicks, sub: 'Across all campaigns', icon: <TrendingUp size={20} /> },
+              { label: 'Impressions', value: totals.impressions, sub: 'Total views', icon: <BarChart2 size={20} /> },
+              { label: 'Conversions', value: totals.conversions, sub: 'Leads generated', icon: <Target size={20} /> },
+            ].map(card => (
+              <div key={card.label} className="card">
+                <div className="card-header"><h2>{card.label}</h2><div className="card-icon">{card.icon}</div></div>
+                <div className="stat-value">{card.value}</div>
+                <div className="stat-label">{card.sub}</div>
               </div>
-              <div className="stat-value">${totals.spend.toFixed(2)}</div>
-              <div className="stat-label">This billing cycle</div>
-            </div>
-            <div className="card">
-              <div className="card-header">
-                <h2>Total Conversions</h2>
-                <div className="card-icon"><TrendingUp size={20} /></div>
-              </div>
-              <div className="stat-value">{totals.conversions}</div>
-              <div className="stat-label">Total Leads Generated</div>
-            </div>
-            <div className="card">
-              <div className="card-header">
-                <h2>Total Clicks</h2>
-                <div className="card-icon"><TrendingUp size={20} /></div>
-              </div>
-              <div className="stat-value">{totals.clicks}</div>
-              <div className="stat-label">Across all campaigns</div>
-            </div>
-            <div className="card">
-              <div className="card-header">
-                <h2>Total Impressions</h2>
-                <div className="card-icon"><TrendingUp size={20} /></div>
-              </div>
-              <div className="stat-value">{totals.impressions}</div>
-              <div className="stat-label">Total Views</div>
-            </div>
+            ))}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '20px', marginBottom: '30px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '20px' }}>
             <div className="card">
-              <h2 style={{ marginBottom: '20px' }}>Impressions vs Clicks</h2>
-              <div style={{ width: '100%', height: '300px' }}>
-                <ResponsiveContainer>
-                  <BarChart data={campaigns} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                    <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={12} tickFormatter={(val) => val.substring(0, 10) + '...'} />
-                    <YAxis yAxisId="left" orientation="left" stroke="#8884d8" fontSize={12} />
-                    <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" fontSize={12} />
-                    <Tooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px' }} />
-                    <Legend />
-                    <Bar yAxisId="left" dataKey="impressions" name="Impressions" fill="#8884d8" radius={[4, 4, 0, 0]} />
-                    <Bar yAxisId="right" dataKey="clicks" name="Clicks" fill="#82ca9d" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+              <h2 style={{ marginBottom: '20px' }}>Impressions vs Clicks by Campaign</h2>
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={campaigns} margin={{ top: 10, right: 20, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                  <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={11} tickFormatter={v => v.substring(0, 12)} />
+                  <YAxis yAxisId="left" stroke="#8884d8" fontSize={11} />
+                  <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" fontSize={11} />
+                  <Tooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px' }} />
+                  <Legend />
+                  <Bar yAxisId="left" dataKey="impressions" name="Impressions" fill="#8884d8" radius={[4, 4, 0, 0]} />
+                  <Bar yAxisId="right" dataKey="clicks" name="Clicks" fill="#82ca9d" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
-
             <div className="card">
-              <h2 style={{ marginBottom: '20px' }}>Performance (CPC & CTR)</h2>
-              <div style={{ width: '100%', height: '300px' }}>
-                <ResponsiveContainer>
-                  <BarChart data={campaigns} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                    <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={12} tickFormatter={(val) => val.substring(0, 10) + '...'} />
-                    <YAxis yAxisId="left" orientation="left" stroke="#ff7300" fontSize={12} />
-                    <YAxis yAxisId="right" orientation="right" stroke="#387908" fontSize={12} />
-                    <Tooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px' }} />
-                    <Legend />
-                    <Bar yAxisId="left" dataKey="cpc" name="Cost Per Click ($)" fill="#ff7300" radius={[4, 4, 0, 0]} />
-                    <Bar yAxisId="right" dataKey="ctr" name="Click-Through Rate (%)" fill="#387908" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+              <h2 style={{ marginBottom: '20px' }}>CPC &amp; CTR by Campaign</h2>
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={campaigns} margin={{ top: 10, right: 20, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                  <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={11} tickFormatter={v => v.substring(0, 12)} />
+                  <YAxis yAxisId="left" stroke="#ff7300" fontSize={11} />
+                  <YAxis yAxisId="right" orientation="right" stroke="#387908" fontSize={11} />
+                  <Tooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px' }} />
+                  <Legend />
+                  <Bar yAxisId="left" dataKey="cpc" name="CPC ($)" fill="#ff7300" radius={[4, 4, 0, 0]} />
+                  <Bar yAxisId="right" dataKey="ctr" name="CTR (%)" fill="#387908" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
           </div>
         </>
       ) : (
-        <>
-          <div className="dashboard-grid" style={{ marginBottom: '30px' }}>
-            <div className="card">
-              <div className="card-header">
-                <h2>Total Ad Spend</h2>
-                <div className="card-icon"><DollarSign size={20} /></div>
-              </div>
-              <div className="stat-value">${totals.spend.toFixed(2)}</div>
-              <div className="stat-label">This billing cycle</div>
+        /* ─── CAMPAIGNS TAB — Accordion ─── */
+        <div>
+          {campaigns.length === 0 ? (
+            <div className="card" style={{ textAlign: 'center', padding: '60px 20px' }}>
+              <Layers size={48} style={{ color: 'var(--text-muted)', marginBottom: '16px' }} />
+              <h2 style={{ marginBottom: '8px' }}>No Campaigns Yet</h2>
+              <p style={{ color: 'var(--text-muted)', marginBottom: '20px' }}>Click "New Campaign" to launch your first ad campaign.</p>
             </div>
-            <div className="card">
-              <div className="card-header">
-                <h2>Total Conversions</h2>
-                <div className="card-icon"><TrendingUp size={20} /></div>
-              </div>
-              <div className="stat-value">{totals.conversions}</div>
-              <div className="stat-label">Across all connected platforms</div>
-            </div>
-          </div>
+          ) : campaigns.map(campaign => {
+            const expanded = expandedCampaigns[campaign.id];
+            const admin = isAdmin(campaign);
+            const campAdSets = adSetsMap[campaign.id] || [];
 
-      <div className="card">
-        <h2 style={{ marginBottom: '20px' }}>Active Campaigns</h2>
-        
-        {campaigns.length === 0 ? (
-          <p className="text-muted">No campaigns found for connected accounts.</p>
-        ) : (
-          <div className="table-responsive">
-            <table className="ads-table">
-              <thead>
-                <tr>
-                  <th>Campaign Name</th>
-                  <th>Account</th>
-                  <th>Role</th>
-                  <th>Platform</th>
-                  <th>Budget</th>
-                  <th>Spend</th>
-                  <th>Imp.</th>
-                  <th>Clicks</th>
-                  <th>CPC</th>
-                  <th>CTR</th>
-                  <th>Leads</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {campaigns.map(campaign => {
-                  const isAdmin = checkIsAdmin(campaign.accountId);
-                  return (
-                    <tr key={campaign.id}>
-                      <td className="fw-600">{campaign.name}</td>
-                      <td>{campaign.accountName}</td>
-                      <td>
-                        <span className={`status-badge ${isAdmin ? 'active' : 'inactive'}`} style={{ fontSize: '0.7rem', padding: '2px 8px' }}>
-                          {isAdmin ? 'Admin' : 'Employee'}
-                        </span>
-                      </td>
-                      <td>
-                        <span className={`platform-tag ${campaign.platform.split(' ')[0].toLowerCase()}`}>
-                          {campaign.platform}
-                        </span>
-                      </td>
-                      <td>
-                        ${campaign.budget.toFixed(2)}
-                        {isAdmin ? (
-                          <button 
-                            onClick={() => handleEditBudget(campaign.accountId, campaign.id)} 
-                            className="icon-btn-inline" 
-                            title="Edit Budget" 
-                            style={{ marginLeft: '6px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
-                          >
-                            <Edit2 size={12} />
-                          </button>
-                        ) : (
-                          <span title="Locked: Employee Role" style={{ marginLeft: '6px', color: 'var(--text-muted)', display: 'inline-flex', verticalAlign: 'middle' }}>
-                            <Lock size={12} />
-                          </span>
-                        )}
-                      </td>
-                      <td>${campaign.spend.toFixed(2)}</td>
-                      <td>{campaign.impressions || 0}</td>
-                      <td>{campaign.clicks || 0}</td>
-                      <td>${Number(campaign.cpc || 0).toFixed(2)}</td>
-                      <td>{Number(campaign.ctr || 0).toFixed(2)}%</td>
-                      <td>{campaign.conversions || 0}</td>
-                      <td>
-                        <span className={`status-badge ${campaign.status.toLowerCase()}`}>
-                          {campaign.status}
-                        </span>
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <button 
-                            onClick={() => setSelectedCampaignDetails(campaign)}
-                            style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-secondary)', color: 'var(--text-main)', fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                          >
-                            <TrendingUp size={12} /> View Audience & Insights
-                          </button>
-                          {isAdmin ? (
-                            <>
-                              <button 
-                                onClick={() => toggleStatus(campaign.accountId, campaign.id, campaign.status)} 
-                                className={`toggle-btn ${campaign.status.toLowerCase()}`}
-                                title={campaign.status === 'ACTIVE' ? 'Pause Campaign' : 'Resume Campaign'}
-                                style={{ border: 'none', cursor: 'pointer', background: 'none', padding: '5px' }}
-                              >
-                                {campaign.status === 'ACTIVE' ? <Pause size={16} /> : <Play size={16} />}
-                              </button>
-                              <button 
-                                onClick={() => handleDeleteCampaign(campaign.accountId, campaign.id)} 
-                                title="Delete Campaign"
-                                style={{ border: 'none', cursor: 'pointer', background: 'none', padding: '5px', color: '#ef4444' }}
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            </>
-                          ) : (
-                            <span 
-                              title="Ad status toggles are locked for Employees" 
-                              style={{ color: 'var(--text-muted)', display: 'inline-block', padding: '5px' }}
-                            >
-                              <Lock size={16} />
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-      </>
-      )}
-
-      {/* New Campaign Modal Dialog */}
-      {showModal && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          zIndex: 9999, padding: '20px', backdropFilter: 'blur(4px)'
-        }}>
-          <div className="card" style={{
-            width: '100%', maxWidth: '480px', padding: '24px', position: 'relative',
-            background: 'var(--bg-card)', borderRadius: '16px', boxShadow: '0 20px 40px rgba(0,0,0,0.3)',
-            maxHeight: '90vh', overflowY: 'auto'
-          }}>
-            <button onClick={() => setShowModal(false)} style={{
-              position: 'absolute', top: '16px', right: '16px', background: 'none', border: 'none',
-              cursor: 'pointer', color: 'var(--text-muted)'
-            }}>
-              <X size={20} />
-            </button>
-
-            <h2 style={{ marginBottom: '8px' }}>Create New Campaign</h2>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '20px' }}>
-              Launch a new advertising campaign on your connected platforms.
-            </p>
-
-            {selectedAdAccount && !selectedAccountIsAdmin && (
-              <div style={{ 
-                background: 'rgba(220, 38, 38, 0.1)', border: '1px solid rgba(220, 38, 38, 0.2)',
-                color: '#ef4444', padding: '10px 14px', borderRadius: '10px', display: 'flex', alignItems: 'center',
-                gap: '8px', fontSize: '0.85rem', marginBottom: '16px', fontWeight: '500'
-              }}>
-                <ShieldAlert size={16} />
-                <span>ReadOnly Access: Campaign creation is locked.</span>
-              </div>
-            )}
-
-            <form onSubmit={handleCreateCampaign} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '0.9rem', fontWeight: '500' }}>Select Ad Account</label>
-                <select 
-                  value={selectedAdAccount} 
-                  onChange={(e) => setSelectedAdAccount(e.target.value)}
+            return (
+              <div key={campaign.id} className="card" style={{ marginBottom: '12px', padding: 0, overflow: 'hidden' }}>
+                {/* Campaign Row */}
+                <div
                   style={{
-                    padding: '10px 14px', borderRadius: '10px', border: '1px solid var(--border)',
-                    background: 'var(--bg-secondary)', color: 'var(--text-main)', fontSize: '0.95rem'
+                    display: 'flex', alignItems: 'center', padding: '14px 20px',
+                    cursor: 'pointer', background: expanded ? 'var(--bg-secondary)' : 'transparent',
+                    borderBottom: expanded ? '1px solid var(--border)' : 'none',
+                    transition: 'background 0.2s'
                   }}
+                  onClick={() => toggleCampaign(campaign)}
                 >
-                  {accounts.map(acc => (
-                    <option key={acc.id} value={acc.id}>
-                      {acc.accountName} ({acc.platform}) - {acc.userRole?.toUpperCase() === 'ADMIN' ? 'Admin' : 'Employee'}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '0.9rem', fontWeight: '500' }}>Campaign Name</label>
-                <input 
-                  type="text" 
-                  placeholder="e.g. Winter Boots Promotion" 
-                  value={newCampName}
-                  onChange={(e) => setNewCampName(e.target.value)}
-                  required
-                  disabled={!selectedAccountIsAdmin}
-                  style={{
-                    padding: '10px 14px', borderRadius: '10px', border: '1px solid var(--border)',
-                    background: 'var(--bg-secondary)', color: 'var(--text-main)', fontSize: '0.95rem',
-                    opacity: selectedAccountIsAdmin ? 1 : 0.6
-                  }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '0.9rem', fontWeight: '500' }}>Daily Budget (USD)</label>
-                <input 
-                  type="number" 
-                  placeholder="e.g. 50.00" 
-                  value={newCampBudget}
-                  onChange={(e) => setNewCampBudget(e.target.value)}
-                  required
-                  min="1"
-                  step="0.01"
-                  disabled={!selectedAccountIsAdmin}
-                  style={{
-                    padding: '10px 14px', borderRadius: '10px', border: '1px solid var(--border)',
-                    background: 'var(--bg-secondary)', color: 'var(--text-main)', fontSize: '0.95rem',
-                    opacity: selectedAccountIsAdmin ? 1 : 0.6
-                  }}
-                />
-              </div>
-
-              {/* Audience Targeting Controls */}
-              <div style={{ padding: '12px', background: 'rgba(79, 70, 229, 0.05)', borderRadius: '10px', border: '1px border var(--border)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--accent)' }}>Target Audience Controls</div>
-                
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                  <div>
-                    <label style={{ fontSize: '0.8rem', fontWeight: '500' }}>Location</label>
-                    <input type="text" value={targetLocation} onChange={(e) => setTargetLocation(e.target.value)} placeholder="e.g. India, USA" style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '0.85rem' }} />
+                  {/* Expand icon */}
+                  <div style={{ marginRight: '12px', color: 'var(--text-muted)' }}>
+                    {expanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
                   </div>
-                  <div>
-                    <label style={{ fontSize: '0.8rem', fontWeight: '500' }}>Gender</label>
-                    <select value={targetGender} onChange={(e) => setTargetGender(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '0.85rem' }}>
-                      <option value="ALL">All Genders</option>
-                      <option value="MALE">Male</option>
-                      <option value="FEMALE">Female</option>
-                    </select>
+
+                  {/* Platform badge */}
+                  <span style={{
+                    background: platformColor(campaign.platform), color: '#fff',
+                    padding: '2px 10px', borderRadius: '20px', fontSize: '0.72rem', fontWeight: 700,
+                    marginRight: '14px', whiteSpace: 'nowrap'
+                  }}>{platformLabel(campaign.platform)}</span>
+
+                  {/* Name */}
+                  <div style={{ flex: 1, fontWeight: 600, fontSize: '0.95rem' }}>{campaign.name}</div>
+
+                  {/* Stats */}
+                  <div style={{ display: 'flex', gap: '20px', fontSize: '0.82rem', color: 'var(--text-muted)', marginRight: '16px' }}>
+                    <span>Budget: <strong>${campaign.budget.toFixed(2)}</strong></span>
+                    <span>Spend: <strong>${campaign.spend.toFixed(2)}</strong></span>
+                    <span>Clicks: <strong>{campaign.clicks}</strong></span>
+                    <span>CTR: <strong>{Number(campaign.ctr).toFixed(1)}%</strong></span>
                   </div>
-                </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                  <div>
-                    <label style={{ fontSize: '0.8rem', fontWeight: '500' }}>Min Age</label>
-                    <input type="number" value={targetAgeMin} onChange={(e) => setTargetAgeMin(e.target.value)} min="13" max="65" style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '0.85rem' }} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '0.8rem', fontWeight: '500' }}>Max Age</label>
-                    <input type="number" value={targetAgeMax} onChange={(e) => setTargetAgeMax(e.target.value)} min="18" max="65" style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '0.85rem' }} />
-                  </div>
-                </div>
+                  {/* Status badge */}
+                  <span className={`status-badge ${campaign.status.toLowerCase()}`} style={{ marginRight: '12px' }}>
+                    {campaign.status}
+                  </span>
 
-                <div>
-                  <label style={{ fontSize: '0.8rem', fontWeight: '500' }}>Targeted Interests (Comma Separated)</label>
-                  <input type="text" value={targetInterests} onChange={(e) => setTargetInterests(e.target.value)} placeholder="Business, Tech, E-commerce" style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '0.85rem' }} />
-                </div>
-              </div>
-
-              {/* Ad Creative & Content */}
-              <div style={{ padding: '12px', background: 'rgba(236, 72, 153, 0.05)', borderRadius: '10px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#ec4899' }}>Ad Creative & Content</div>
-                
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: '500' }}>Headline</label>
-                  <input type="text" value={adHeadline} onChange={(e) => setAdHeadline(e.target.value)} placeholder="e.g. 50% Off Winter Sale!" style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '0.85rem' }} />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: '500' }}>Primary Text</label>
-                  <textarea value={adText} onChange={(e) => setAdText(e.target.value)} placeholder="Tell your audience about your offer..." style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '0.85rem', minHeight: '60px' }} />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: '500' }}>Destination URL</label>
-                  <input type="url" value={adLinkUrl} onChange={(e) => setAdLinkUrl(e.target.value)} placeholder="https://yourwebsite.com/offer" style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '0.85rem' }} />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: '500' }}>Ad Image / Video</label>
-                  <div style={{ border: '2px dashed var(--accent)', borderRadius: '12px', padding: '10px', textAlign: 'center', cursor: 'pointer', position: 'relative', background: 'rgba(79, 70, 229, 0.05)' }}>
-                    <input 
-                      type="file" 
-                      accept="image/*,video/*"
-                      style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }}
-                      onChange={handleMediaChange}
-                      ref={fileInputRef}
-                    />
-                    {mediaPreviewUrl ? (
-                      <div style={{ position: 'relative', display: 'inline-block' }}>
-                        {mediaFile?.type.startsWith('video') ? (
-                          <video src={mediaPreviewUrl} controls style={{ maxHeight: '100px', borderRadius: '8px', maxWidth: '100%' }} />
-                        ) : (
-                          <img src={mediaPreviewUrl} alt="Preview" style={{ maxHeight: '100px', borderRadius: '8px' }} />
-                        )}
-                        <button 
-                          onClick={(e) => { e.preventDefault(); clearMedia(); }}
-                          style={{ position: 'absolute', top: '-6px', right: '-6px', background: 'red', color: 'white', border: 'none', borderRadius: '50%', padding: '4px', cursor: 'pointer', zIndex: 10 }}
+                  {/* Actions — stop propagation so click doesn't toggle expand */}
+                  <div style={{ display: 'flex', gap: '6px' }} onClick={e => e.stopPropagation()}>
+                    {admin ? (
+                      <>
+                        <button
+                          onClick={() => toggleStatus(campaign)}
+                          title={campaign.status === 'ACTIVE' ? 'Pause' : 'Resume'}
+                          style={{ border: 'none', background: 'none', cursor: 'pointer', color: campaign.status === 'ACTIVE' ? '#f59e0b' : '#10b981', padding: '4px' }}
                         >
-                          <X size={12} />
+                          {campaign.status === 'ACTIVE' ? <Pause size={16} /> : <Play size={16} />}
                         </button>
-                      </div>
+                        <button onClick={() => deleteCampaign(campaign)} title="Delete Campaign"
+                          style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#ef4444', padding: '4px' }}>
+                          <Trash2 size={16} />
+                        </button>
+                      </>
                     ) : (
-                      <div style={{ color: 'var(--accent)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '10px 0' }}>
-                        <UploadCloud size={24} style={{ marginBottom: '6px' }} />
-                        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>Drag & drop or click to browse</p>
-                      </div>
+                      <span title="Read-only: Employee role" style={{ color: 'var(--text-muted)' }}><Lock size={16} /></span>
                     )}
                   </div>
                 </div>
-              </div>
 
-              <button 
-                type="submit" 
-                className="btn-primary" 
-                disabled={creating || !selectedAccountIsAdmin}
-                style={{
-                  padding: '12px', fontSize: '1rem', display: 'flex', alignItems: 'center',
-                  justifyContent: 'center', gap: '8px', marginTop: '10px',
-                  opacity: selectedAccountIsAdmin ? 1 : 0.5, cursor: selectedAccountIsAdmin ? 'pointer' : 'not-allowed'
-                }}
-              >
-                {creating ? <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> : (selectedAccountIsAdmin ? <Plus size={18} /> : <Lock size={18} />)}
-                {selectedAccountIsAdmin ? 'Create Campaign' : 'Locked'}
-              </button>
-            </form>
-          </div>
+                {/* Ad Sets Section */}
+                {expanded && (
+                  <div style={{ background: 'var(--bg-secondary)' }}>
+                    {loadingAdSets[campaign.id] ? (
+                      <div style={{ padding: '20px 40px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Loader2 size={16} className="spin" /> Loading Ad Sets...
+                      </div>
+                    ) : (
+                      <>
+                        {campAdSets.length === 0 ? (
+                          <div style={{ padding: '16px 48px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                            No Ad Sets yet. Create your first Ad Set below.
+                          </div>
+                        ) : campAdSets.map(adSet => {
+                          const asExpanded = expandedAdSets[adSet.adSetId];
+                          return (
+                            <div key={adSet.adSetId} style={{ borderBottom: '1px solid var(--border)' }}>
+                              {/* Ad Set Row */}
+                              <div
+                                style={{
+                                  display: 'flex', alignItems: 'center',
+                                  padding: '11px 20px 11px 48px', cursor: 'pointer',
+                                  background: asExpanded ? 'rgba(99,102,241,0.05)' : 'transparent'
+                                }}
+                                onClick={() => toggleAdSet(adSet.adSetId)}
+                              >
+                                <div style={{ marginRight: '10px', color: 'var(--text-muted)' }}>
+                                  {asExpanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+                                </div>
+                                <Target size={14} style={{ color: '#6366f1', marginRight: '8px' }} />
+                                <span style={{ fontWeight: 500, flex: 1, fontSize: '0.88rem' }}>{adSet.name}</span>
+                                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginRight: '16px' }}>
+                                  Budget: ${adSet.budget}/day · Ages {adSet.targetAgeMin}–{adSet.targetAgeMax} · {adSet.targetLocation}
+                                </span>
+                                <span className={`status-badge ${adSet.status.toLowerCase()}`} style={{ fontSize: '0.7rem', marginRight: '10px' }}>
+                                  {adSet.status}
+                                </span>
+                                {admin && (
+                                  <button onClick={e => { e.stopPropagation(); deleteAdSet(campaign, adSet); }}
+                                    title="Delete Ad Set"
+                                    style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#ef4444', padding: '3px' }}>
+                                    <Trash2 size={14} />
+                                  </button>
+                                )}
+                              </div>
+
+                              {/* Ads inside Ad Set */}
+                              {asExpanded && (
+                                <div style={{ paddingLeft: '72px', paddingBottom: '10px', paddingRight: '20px' }}>
+                                  {(adSet.ads || []).length === 0 ? (
+                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', padding: '8px 0' }}>No ads yet in this Ad Set.</div>
+                                  ) : (adSet.ads || []).map(ad => (
+                                    <div key={ad.adId} style={{
+                                      display: 'flex', alignItems: 'center', gap: '10px',
+                                      padding: '8px 12px', background: 'var(--bg-card)',
+                                      borderRadius: '8px', marginBottom: '6px', border: '1px solid var(--border)'
+                                    }}>
+                                      <Image size={13} style={{ color: '#f59e0b', flexShrink: 0 }} />
+                                      <span style={{ fontWeight: 500, fontSize: '0.83rem', flex: 1 }}>{ad.name}</span>
+                                      {ad.headline && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>"{ad.headline}"</span>}
+                                      <span className={`status-badge ${ad.status.toLowerCase()}`} style={{ fontSize: '0.68rem' }}>{ad.status}</span>
+                                      {admin && (
+                                        <button onClick={() => deleteAdItem(campaign, adSet, ad)}
+                                          style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#ef4444', padding: '2px' }}>
+                                          <Trash2 size={13} />
+                                        </button>
+                                      )}
+                                    </div>
+                                  ))}
+                                  {admin && (
+                                    <button
+                                      onClick={() => { setActiveCampaign(campaign); setActiveAdSet(adSet); setModalType('ad'); }}
+                                      style={{
+                                        display: 'inline-flex', alignItems: 'center', gap: '5px',
+                                        background: 'none', border: '1px dashed var(--border)',
+                                        borderRadius: '8px', padding: '6px 14px', cursor: 'pointer',
+                                        color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '4px'
+                                      }}>
+                                      <Plus size={13} /> Add Ad
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+
+                        {/* Add Ad Set button */}
+                        {admin && (
+                          <div style={{ padding: '12px 20px 12px 48px' }}>
+                            <button
+                              onClick={() => { setActiveCampaign(campaign); setModalType('adset'); }}
+                              style={{
+                                display: 'inline-flex', alignItems: 'center', gap: '6px',
+                                background: 'none', border: '1px dashed var(--primary)',
+                                borderRadius: '8px', padding: '7px 16px', cursor: 'pointer',
+                                color: 'var(--primary)', fontSize: '0.82rem', fontWeight: 500
+                              }}>
+                              <Plus size={14} /> New Ad Set
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
-      {/* Campaign Details & Audience Insights Modal */}
-      {selectedCampaignDetails && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          zIndex: 9999, padding: '20px', backdropFilter: 'blur(4px)'
-        }}>
-          <div className="card" style={{
-            width: '100%', maxWidth: '520px', padding: '24px', position: 'relative',
-            background: 'var(--bg-card)', borderRadius: '16px', boxShadow: '0 20px 40px rgba(0,0,0,0.3)'
-          }}>
-            <button onClick={() => setSelectedCampaignDetails(null)} style={{
-              position: 'absolute', top: '16px', right: '16px', background: 'none', border: 'none',
-              cursor: 'pointer', color: 'var(--text-muted)'
-            }}>
-              <X size={20} />
+      {/* ─── MODAL: New Campaign ─── */}
+      {modalType === 'campaign' && (
+        <ModalOverlay onClose={() => setModalType(null)}>
+          <h2 style={{ marginBottom: '6px' }}>New Campaign</h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '20px' }}>Create a campaign on Meta or Google Ads.</p>
+          <form onSubmit={submitCampaign}>
+            <label style={labelStyle}>Campaign Name</label>
+            <input style={inputStyle} placeholder="Summer Sale 2025" value={campName} onChange={e => setCampName(e.target.value)} required />
+            <label style={labelStyle}>Ad Account</label>
+            <select style={inputStyle} value={campAccount} onChange={e => setCampAccount(e.target.value)}>
+              {accounts.map(a => <option key={a.id} value={a.id}>{a.accountName} ({platformLabel(a.platform)})</option>)}
+            </select>
+            <label style={labelStyle}>Daily Budget ($)</label>
+            <input style={inputStyle} type="number" min="1" value={campBudget} onChange={e => setCampBudget(e.target.value)} required />
+            <button type="submit" className="btn-primary" style={{ width: '100%', marginTop: '8px' }} disabled={submitting}>
+              {submitting ? <><Loader2 size={16} className="spin" /> Creating...</> : 'Create Campaign'}
             </button>
+          </form>
+        </ModalOverlay>
+      )}
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-              <span className={`platform-tag ${selectedCampaignDetails.platform}`}>{selectedCampaignDetails.platform}</span>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>ID: {selectedCampaignDetails.id}</span>
-            </div>
-            <h2 style={{ marginBottom: '4px' }}>{selectedCampaignDetails.name}</h2>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '20px' }}>Connected Ad Account: <strong>{selectedCampaignDetails.accountName}</strong></p>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
-              <div style={{ background: 'var(--bg-secondary)', padding: '12px', borderRadius: '10px', border: '1px solid var(--border)' }}>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Daily Budget</div>
-                <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>${selectedCampaignDetails.budget?.toFixed(2)}</div>
+      {/* ─── MODAL: New Ad Set ─── */}
+      {modalType === 'adset' && activeCampaign && (
+        <ModalOverlay onClose={() => setModalType(null)}>
+          <h2 style={{ marginBottom: '4px' }}>New Ad Set</h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginBottom: '18px' }}>
+            Under: <strong>{activeCampaign.name}</strong> · {platformLabel(activeCampaign.platform)}
+          </p>
+          <form onSubmit={submitAdSet}>
+            <label style={labelStyle}>Ad Set Name</label>
+            <input style={inputStyle} placeholder="18-35 India Women" value={asName} onChange={e => setAsName(e.target.value)} required />
+            <label style={labelStyle}>Daily Budget ($)</label>
+            <input style={inputStyle} type="number" min="1" value={asBudget} onChange={e => setAsBudget(e.target.value)} />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div>
+                <label style={labelStyle}>Min Age</label>
+                <input style={inputStyle} type="number" min="18" max="65" value={asAgeMin} onChange={e => setAsAgeMin(e.target.value)} />
               </div>
-              <div style={{ background: 'var(--bg-secondary)', padding: '12px', borderRadius: '10px', border: '1px solid var(--border)' }}>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Total Spend</div>
-                <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>${selectedCampaignDetails.spend?.toFixed(2)}</div>
-              </div>
-            </div>
-
-            <div style={{ background: 'rgba(79, 70, 229, 0.05)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border)', marginBottom: '20px' }}>
-              <div style={{ fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--accent)', marginBottom: '10px' }}>Target Audience Settings</div>
-              <div style={{ fontSize: '0.85rem', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <div>📍 <strong>Location:</strong> {selectedCampaignDetails.targetLocation || 'Not specified'}</div>
-                <div>👤 <strong>Age Range:</strong> {selectedCampaignDetails.targetAgeMin || 'Any'} - {selectedCampaignDetails.targetAgeMax || 'Any'} years</div>
-                <div>⚡ <strong>Gender:</strong> {selectedCampaignDetails.targetGender || 'Any'}</div>
-                <div>🎯 <strong>Interests:</strong> {Array.isArray(selectedCampaignDetails.targetInterests) && selectedCampaignDetails.targetInterests.length > 0 ? selectedCampaignDetails.targetInterests.join(', ') : 'Not specified'}</div>
+              <div>
+                <label style={labelStyle}>Max Age</label>
+                <input style={inputStyle} type="number" min="18" max="65" value={asAgeMax} onChange={e => setAsAgeMax(e.target.value)} />
               </div>
             </div>
-
-            <button className="btn-primary" onClick={() => setSelectedCampaignDetails(null)} style={{ width: '100%', padding: '10px' }}>
-              Close Insights
+            <label style={labelStyle}>Gender</label>
+            <select style={inputStyle} value={asGender} onChange={e => setAsGender(e.target.value)}>
+              <option value="ALL">All</option>
+              <option value="MALE">Male</option>
+              <option value="FEMALE">Female</option>
+            </select>
+            <label style={labelStyle}>Location</label>
+            <input style={inputStyle} placeholder="India, US, UK" value={asLocation} onChange={e => setAsLocation(e.target.value)} />
+            <label style={labelStyle}>Interests (comma-separated)</label>
+            <input style={inputStyle} placeholder="Technology, Fashion" value={asInterests} onChange={e => setAsInterests(e.target.value)} />
+            <button type="submit" className="btn-primary" style={{ width: '100%', marginTop: '8px' }} disabled={submitting}>
+              {submitting ? <><Loader2 size={16} className="spin" /> Creating...</> : 'Create Ad Set'}
             </button>
-          </div>
-        </div>
+          </form>
+        </ModalOverlay>
+      )}
+
+      {/* ─── MODAL: New Ad ─── */}
+      {modalType === 'ad' && activeCampaign && activeAdSet && (
+        <ModalOverlay onClose={() => setModalType(null)}>
+          <h2 style={{ marginBottom: '4px' }}>New Ad</h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginBottom: '18px' }}>
+            Under: <strong>{activeCampaign.name}</strong> → <strong>{activeAdSet.name}</strong>
+          </p>
+          <form onSubmit={submitAd}>
+            <label style={labelStyle}>Ad Name</label>
+            <input style={inputStyle} placeholder="Spring Sale - Version A" value={adName} onChange={e => setAdName(e.target.value)} required />
+            <label style={labelStyle}>Headline</label>
+            <input style={inputStyle} placeholder="Get 50% Off Today!" value={adHeadline} onChange={e => setAdHeadline(e.target.value)} />
+            <label style={labelStyle}>Ad Text / Body</label>
+            <textarea style={{ ...inputStyle, minHeight: '70px', resize: 'vertical' }} placeholder="Limited offer. Click to claim your discount." value={adText} onChange={e => setAdText(e.target.value)} />
+            <label style={labelStyle}>Destination URL</label>
+            <input style={inputStyle} placeholder="https://yoursite.com/sale" value={adLink} onChange={e => setAdLink(e.target.value)} />
+            <label style={labelStyle}>Ad Image / Video</label>
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              style={{
+                border: '2px dashed var(--border)', borderRadius: '10px', padding: '20px',
+                textAlign: 'center', cursor: 'pointer', marginBottom: '12px',
+                background: adMediaPreview ? 'transparent' : 'var(--bg-secondary)'
+              }}
+            >
+              {adMediaPreview ? (
+                <img src={adMediaPreview} alt="preview" style={{ maxHeight: '120px', borderRadius: '6px', objectFit: 'cover' }} />
+              ) : (
+                <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                  <UploadCloud size={24} style={{ marginBottom: '6px' }} /><br />Click to upload image or video
+                </div>
+              )}
+            </div>
+            <input ref={fileInputRef} type="file" accept="image/*,video/*" style={{ display: 'none' }}
+              onChange={e => {
+                if (e.target.files?.[0]) {
+                  setAdMediaFile(e.target.files[0]);
+                  setAdMediaPreview(URL.createObjectURL(e.target.files[0]));
+                }
+              }} />
+            <button type="submit" className="btn-primary" style={{ width: '100%', marginTop: '8px' }} disabled={submitting || uploadingMedia}>
+              {uploadingMedia ? <><Loader2 size={16} className="spin" /> Uploading...</> : submitting ? <><Loader2 size={16} className="spin" /> Creating...</> : 'Create Ad'}
+            </button>
+          </form>
+        </ModalOverlay>
       )}
     </>
   );
 }
+
+// ─── Modal Wrapper ─────────────────────────────────────────────────────────────
+function ModalOverlay({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      zIndex: 9999, padding: '20px', backdropFilter: 'blur(4px)'
+    }}>
+      <div className="card" style={{
+        width: '100%', maxWidth: '500px', padding: '28px', position: 'relative',
+        maxHeight: '90vh', overflowY: 'auto', borderRadius: '16px'
+      }}>
+        <button onClick={onClose} style={{
+          position: 'absolute', top: '16px', right: '16px',
+          background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)'
+        }}><X size={20} /></button>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ─── Shared Styles ────────────────────────────────────────────────────────────
+const labelStyle: React.CSSProperties = {
+  display: 'block', fontSize: '0.82rem', fontWeight: 500,
+  color: 'var(--text-muted)', marginBottom: '5px', marginTop: '12px'
+};
+const inputStyle: React.CSSProperties = {
+  width: '100%', padding: '9px 12px', borderRadius: '8px',
+  border: '1px solid var(--border)', background: 'var(--bg-secondary)',
+  color: 'var(--text-main)', fontSize: '0.9rem', boxSizing: 'border-box'
+};
