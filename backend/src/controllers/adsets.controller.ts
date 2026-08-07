@@ -108,6 +108,50 @@ export const createAdSet = async (req: Request, res: Response) => {
       }
     }
 
+    // ── LINKEDIN ADS ──────────────────────────────────────────
+    if (account.platform === 'linkedin') {
+      try {
+        const token = decrypt(account.encryptedAccessToken);
+        const accountUrn = account.adAccountId.startsWith('urn:li:sponsoredAccount:') 
+          ? account.adAccountId 
+          : `urn:li:sponsoredAccount:${account.adAccountId.replace('li_ads_', '')}`;
+        const groupUrn = campaign.campaignId.startsWith('urn:li:sponsoredCampaignGroup:')
+          ? campaign.campaignId
+          : `urn:li:sponsoredCampaignGroup:${campaign.campaignId}`;
+
+        // Create LinkedIn Campaign (mapped to our AdSet)
+        const res = await axios.post('https://api.linkedin.com/rest/adCampaigns', {
+          account: accountUrn,
+          campaignGroup: groupUrn,
+          name: name,
+          type: 'TEXT_AD',
+          audience: {
+            include: {
+              and: [
+                { or: { 'urn:li:adTargetingFacet:locations': [ 'urn:li:geo:103644278' ] } } // default US
+              ]
+            }
+          },
+          dailyBudget: { currencyCode: 'USD', amount: (budget || 10).toString() },
+          costType: 'CPM',
+          status: 'DRAFT',
+          locale: { country: 'US', language: 'en' },
+        }, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'LinkedIn-Version': '202401',
+            'X-Restli-Protocol-Version': '2.0.0',
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        platformAdSetId = res.headers['x-restli-id'] || `li_adset_${Date.now()}`;
+        console.log(`[LinkedIn] Created Ad Set (Campaign): ${platformAdSetId}`);
+      } catch (err: any) {
+        console.error('[LinkedIn] Failed to create Ad Set:', err.response?.data || err.message);
+      }
+    }
+
     const adSet = await prisma.adSet.create({
       data: {
         adSetId: platformAdSetId,
@@ -284,6 +328,45 @@ export const createAd = async (req: Request, res: Response) => {
         console.error('[Google] Failed to create Ad:', err.message);
       }
     }
+
+    // ── LINKEDIN ADS ──────────────────────────────────────────
+    if (account.platform === 'linkedin') {
+      try {
+        const token = decrypt(account.encryptedAccessToken);
+        const campaignUrn = adSetId.startsWith('urn:li:sponsoredCampaign:') 
+          ? adSetId 
+          : `urn:li:sponsoredCampaign:${adSetId}`;
+
+        // Create LinkedIn Creative (mapped to our Ad)
+        const res = await axios.post('https://api.linkedin.com/rest/adCreatives', {
+          campaign: campaignUrn,
+          type: 'TEXT_AD',
+          variables: {
+            data: {
+              textAd: {
+                title: headline || name,
+                text: text || 'Join us today!',
+                landingPage: linkUrl || 'https://example.com'
+              }
+            }
+          },
+          status: 'ACTIVE' // Draft campaigns can hold active creatives
+        }, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'LinkedIn-Version': '202401',
+            'X-Restli-Protocol-Version': '2.0.0',
+            'Content-Type': 'application/json'
+          }
+        });
+
+        platformAdId = res.headers['x-restli-id'] || `li_adcreative_${Date.now()}`;
+        console.log(`[LinkedIn] Created Ad Creative: ${platformAdId}`);
+      } catch (err: any) {
+        console.error('[LinkedIn] Failed to create Ad Creative:', err.response?.data || err.message);
+      }
+    }
+
 
     const ad = await prisma.ad.create({
       data: {
