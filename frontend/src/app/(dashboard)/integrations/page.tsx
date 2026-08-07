@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Link as LinkIcon, CheckCircle, XCircle, AlertCircle, Loader2, Facebook, Twitter, Linkedin, Instagram, LogOut } from 'lucide-react';
-import { fetchAPI } from '@/lib/apiClient';
+import { Link as LinkIcon, CheckCircle, XCircle, AlertCircle, Loader2, Facebook, Twitter, Linkedin, Instagram, LogOut, RefreshCw, Zap } from 'lucide-react';
+import { fetchAPI, getBackendUrl } from '@/lib/apiClient';
 import { supabase } from '@/lib/supabase';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -19,7 +19,7 @@ interface Toast {
 }
 
 // ─── Platform Config ──────────────────────────────────────────────────────────
-const PLATFORMS = [
+const SOCIAL_PLATFORMS = [
   {
     id: 'facebook',
     label: 'Facebook Pages',
@@ -27,15 +27,25 @@ const PLATFORMS = [
     icon: Facebook,
     color: '#1877F2',
     oauthPath: 'facebook',
+    adNote: 'Also automatically connects Meta Ads account',
   },
   {
     id: 'instagram',
     label: 'Instagram Business',
-    description: 'Instagram Business accounts are connected automatically via Facebook.',
+    description: 'Connected automatically with Facebook Pages — no extra step needed.',
     icon: Instagram,
     color: '#E1306C',
-    oauthPath: null, // Connected via Facebook
+    oauthPath: null,
     via: 'facebook',
+  },
+  {
+    id: 'linkedin',
+    label: 'LinkedIn Profile',
+    description: 'Connect your LinkedIn to publish posts and manage LinkedIn Ads.',
+    icon: Linkedin,
+    color: '#0A66C2',
+    oauthPath: 'linkedin',
+    adNote: 'Also automatically connects LinkedIn Ads account',
   },
   {
     id: 'twitter',
@@ -45,34 +55,51 @@ const PLATFORMS = [
     color: '#000000',
     oauthPath: 'twitter',
   },
-  {
-    id: 'linkedin',
-    label: 'LinkedIn',
-    description: 'Connect your LinkedIn profile to publish professional posts.',
-    icon: Linkedin,
-    color: '#0A66C2',
-    oauthPath: 'linkedin',
-  },
 ];
 
 const AD_PLATFORMS = [
-  { id: 'facebook', label: 'Meta Ads (Facebook / Instagram)', color: '#1877F2', icon: Facebook },
-  { id: 'google',   label: 'Google Ads', color: '#4285F4', icon: null },
-  { id: 'linkedin', label: 'LinkedIn Ads', color: '#0A66C2', icon: Linkedin },
+  {
+    id: 'facebook',
+    label: 'Meta Ads (Facebook / Instagram)',
+    description: 'Automatically connected when you connect your Facebook Pages above.',
+    color: '#1877F2',
+    icon: Facebook,
+    auto: true,
+    via: 'facebook',
+  },
+  {
+    id: 'google',
+    label: 'Google Ads',
+    description: 'Connect via Google OAuth to manage your Google Ads campaigns.',
+    color: '#4285F4',
+    icon: null,
+    auto: false,
+    oauthPath: 'google',
+  },
+  {
+    id: 'linkedin',
+    label: 'LinkedIn Ads',
+    description: 'Automatically connected when you connect your LinkedIn profile above.',
+    color: '#0A66C2',
+    icon: Linkedin,
+    auto: true,
+    via: 'linkedin',
+  },
 ];
 
 // ─── Component ────────────────────────────────────────────────────────────────
-export default function SettingsPage() {
+export default function IntegrationsPage() {
   const [socialAccounts, setSocialAccounts] = useState<ConnectedAccount[]>([]);
-  const [adAccounts, setAdAccounts] = useState<ConnectedAccount[]>([]);
-  const [currentUserId, setCurrentUserId] = useState<string>('');
-  const [loading, setLoading] = useState(true);
-  const [disconnecting, setDisconnecting] = useState<string | null>(null);
-  const [toast, setToast] = useState<Toast | null>(null);
+  const [adAccounts,     setAdAccounts]     = useState<ConnectedAccount[]>([]);
+  const [currentUserId,  setCurrentUserId]  = useState<string>('');
+  const [loading,        setLoading]        = useState(true);
+  const [disconnecting,  setDisconnecting]  = useState<string | null>(null);
+  const [connecting,     setConnecting]     = useState<string | null>(null);
+  const [toast,          setToast]          = useState<Toast | null>(null);
 
   const showToast = (type: Toast['type'], message: string) => {
     setToast({ type, message });
-    setTimeout(() => setToast(null), 5000);
+    setTimeout(() => setToast(null), 6000);
   };
 
   const loadAccounts = useCallback(async () => {
@@ -91,11 +118,9 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
-    // Fetch the current user ID from Supabase
     supabase.auth.getUser().then(({ data: { user } }) => {
-      setCurrentUserId(user?.id || '57bc2705-e440-4a59-93aa-29fb952eb96f');
+      setCurrentUserId(user?.id || '');
     });
-
     loadAccounts();
 
     // Handle OAuth callback result in URL params
@@ -105,26 +130,26 @@ export default function SettingsPage() {
     const account = params.get('account');
 
     if (success) {
-      const accountStr = account ? ` as ${decodeURIComponent(account)}` : '';
+      const accountStr = account ? ` as "${decodeURIComponent(account)}"` : '';
       showToast('success', `Account connected successfully${accountStr}! ✓`);
-      window.history.replaceState({}, '', '/settings');
-      loadAccounts(); // Refresh list after connect
+      window.history.replaceState({}, '', '/integrations');
+      loadAccounts();
     }
     if (error) {
       const msg = decodeURIComponent(error).replace(/_/g, ' ');
       showToast('error', `Connection failed: ${msg}`);
-      window.history.replaceState({}, '', '/settings');
+      window.history.replaceState({}, '', '/integrations');
     }
   }, []);
 
+  // ── OAuth Redirect ─────────────────────────────────────────────────────────
   const handleConnect = (oauthPath: string) => {
-    if (!currentUserId) {
-      showToast('error', 'User not authenticated. Please log in again.');
-      return;
-    }
+    if (!currentUserId) { showToast('error', 'User not authenticated. Please log in again.'); return; }
+    setConnecting(oauthPath);
     window.location.href = `${getBackendUrl()}/api/v1/oauth/${oauthPath}?userId=${currentUserId}`;
   };
 
+  // ── Disconnect ─────────────────────────────────────────────────────────────
   const handleDisconnect = async (platform: string) => {
     setDisconnecting(platform);
     try {
@@ -138,181 +163,153 @@ export default function SettingsPage() {
     }
   };
 
-  const getConnectedAccount = (platform: string) =>
-    socialAccounts.find(a => a.platform === platform);
+  const getSocialAccount  = (platform: string) => socialAccounts.find(a => a.platform === platform);
+  const getAdAccount      = (platform: string) => adAccounts.find(a => a.platform === platform);
 
-  const getConnectedAdAccount = (platform: string) =>
-    adAccounts.find(a => a.platform === platform);
-
-  const handleConnectAd = (platformId: string) => {
-    if (platformId === 'google') {
-      if (!currentUserId) {
-        showToast('error', 'User not authenticated. Please log in again.');
-        return;
-      }
-      window.location.href = `${getBackendUrl()}/api/v1/oauth/google?userId=${currentUserId}`;
-    } else if (platformId === 'facebook') {
-      showToast('info', 'Meta Ads are connected automatically when you connect Facebook Pages above.');
-    } else if (platformId === 'linkedin') {
-      showToast('info', 'LinkedIn Ads are connected automatically when you connect LinkedIn above.');
-    }
-  };
+  const totalConnected = socialAccounts.length + adAccounts.length;
 
   return (
     <>
-      {/* Toast Notification */}
+      {/* ── Toast ── */}
       {toast && (
         <div style={{
           position: 'fixed', top: '80px', right: '24px', zIndex: 9999,
           display: 'flex', alignItems: 'center', gap: '10px',
           background: toast.type === 'success' ? '#16a34a' : toast.type === 'error' ? '#dc2626' : '#2563eb',
-          color: 'white', padding: '14px 20px', borderRadius: '12px',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.2)', fontSize: '0.95rem',
-          animation: 'slideIn 0.3s ease',
-          maxWidth: '400px',
+          color: 'white', padding: '14px 22px', borderRadius: '14px',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.25)', fontSize: '0.93rem',
+          animation: 'slideIn 0.3s ease', maxWidth: '420px',
         }}>
-          {toast.type === 'success' && <CheckCircle size={20} />}
-          {toast.type === 'error'   && <XCircle size={20} />}
-          {toast.type === 'info'    && <AlertCircle size={20} />}
+          {toast.type === 'success' && <CheckCircle size={18} />}
+          {toast.type === 'error'   && <XCircle size={18} />}
+          {toast.type === 'info'    && <AlertCircle size={18} />}
           <span>{toast.message}</span>
         </div>
       )}
 
-      <div className="page-header">
-        <h1>Integrations</h1>
-        <p>Connect your social media and advertising accounts to manage everything from one place.</p>
+      {/* ── Page Header ── */}
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <h1>Integrations</h1>
+          <p>Connect your social media and ad accounts — everything runs automatically from here.</p>
+        </div>
+        {totalConnected > 0 && (
+          <div style={{
+            background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+            borderRadius: '12px', padding: '10px 18px', fontSize: '0.85rem', color: 'var(--text-muted)',
+            display: 'flex', alignItems: 'center', gap: '8px',
+          }}>
+            <Zap size={15} style={{ color: '#10b981' }} />
+            <strong style={{ color: '#10b981' }}>{totalConnected}</strong> active connections
+          </div>
+        )}
       </div>
 
       {loading ? (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}>
-          <Loader2 size={32} style={{ animation: 'spin 1s linear infinite', color: 'var(--accent)' }} />
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '60px' }}>
+          <Loader2 size={32} style={{ animation: 'spin 1s linear infinite', color: 'var(--primary)' }} />
         </div>
       ) : (
         <>
-          {/* ── Connected Accounts Section ── */}
-          {socialAccounts.length > 0 && (
-            <div className="card" style={{ marginBottom: '24px' }}>
-              <div className="card-header">
-                <h2>Your Connected Accounts</h2>
-                <div className="card-icon" style={{ background: '#16a34a18', color: '#16a34a' }}><CheckCircle size={20} /></div>
-              </div>
-              <p style={{ color: 'var(--text-muted)', marginBottom: '20px', fontSize: '0.9rem' }}>
-                Accounts that are currently active and ready for publishing.
-              </p>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
-                {socialAccounts.map(account => {
-                  const platformConfig = PLATFORMS.find(p => p.id === account.platform);
-                  const PlatformIcon = platformConfig?.icon || LinkIcon;
-                  const color = platformConfig?.color || 'var(--accent)';
-
-                  return (
-                    <div key={account.id} style={{
-                      padding: '16px', borderRadius: '12px', border: '1px solid var(--border)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      background: 'var(--bg-secondary)',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <div style={{
-                          width: '40px', height: '40px', borderRadius: '10px',
-                          background: `${color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        }}>
-                          <PlatformIcon size={20} style={{ color }} />
-                        </div>
-                        <div>
-                          <div style={{ fontWeight: '600', fontSize: '0.95rem', color: 'var(--text-main)' }}>
-                            {account.accountName}
-                          </div>
-                          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'capitalize' }}>
-                            {account.platform}
-                          </div>
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={() => handleDisconnect(account.platform)}
-                        disabled={disconnecting === account.platform}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: '6px',
-                          padding: '6px 12px', borderRadius: '8px', border: '1px solid #dc262630',
-                          background: '#dc262610', color: '#dc2626', cursor: 'pointer',
-                          fontSize: '0.8rem', fontWeight: '500',
-                          opacity: disconnecting === account.platform ? 0.7 : 1,
-                        }}
-                      >
-                        {disconnecting === account.platform
-                          ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
-                          : <LogOut size={14} />
-                        }
-                        Disconnect
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* ── Add New Connection Section ── */}
-          <div className="card" style={{ marginBottom: '24px' }}>
+          {/* ══════════════════════════════════════════════════════════════ */}
+          {/*  SECTION 1 — Social Accounts                                   */}
+          {/* ══════════════════════════════════════════════════════════════ */}
+          <div className="card" style={{ marginBottom: '20px' }}>
             <div className="card-header">
-              <h2>Add New Connection</h2>
-              <div className="card-icon"><LinkIcon size={20} /></div>
+              <h2>Social Media Accounts</h2>
+              <div className="card-icon"><Facebook size={18} /></div>
             </div>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
-              {PLATFORMS.map((platform, idx) => {
-                const PlatformIcon = platform.icon;
-                const isLast = idx === PLATFORMS.length - 1;
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '20px' }}>
+              Connect platforms to publish posts, stories, and reels directly from the CRM.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+              {SOCIAL_PLATFORMS.map((platform, idx) => {
+                const Icon = platform.icon;
+                const connected = getSocialAccount(platform.id);
+                const isLast = idx === SOCIAL_PLATFORMS.length - 1;
 
                 return (
                   <div key={platform.id} style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    padding: '18px 0',
+                    padding: '16px 4px',
                     borderBottom: isLast ? 'none' : '1px solid var(--border)',
                   }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    {/* Left: Icon + Info */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                       <div style={{
                         width: '44px', height: '44px', borderRadius: '12px',
                         background: `${platform.color}18`, border: `1px solid ${platform.color}30`,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                       }}>
-                        <PlatformIcon size={22} style={{ color: platform.color }} />
+                        <Icon size={22} style={{ color: platform.color }} />
                       </div>
                       <div>
-                        <div style={{ fontWeight: '600', fontSize: '0.95rem', color: 'var(--text-main)' }}>
+                        <div style={{ fontWeight: 600, fontSize: '0.93rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                           {platform.label}
+                          {platform.adNote && (
+                            <span style={{ fontSize: '0.68rem', background: '#10b98115', color: '#10b981', padding: '2px 8px', borderRadius: '20px', fontWeight: 500 }}>
+                              + Ads
+                            </span>
+                          )}
                         </div>
-                        <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                          {platform.description}
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                          {connected ? (
+                            <span style={{ color: '#16a34a', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <CheckCircle size={12} /> {connected.accountName}
+                            </span>
+                          ) : platform.description}
                         </div>
                       </div>
                     </div>
 
-                    <div>
+                    {/* Right: Button */}
+                    <div style={{ flexShrink: 0 }}>
                       {platform.via ? (
-                        <span style={{
-                          fontSize: '0.8rem', color: 'var(--text-muted)', background: 'var(--bg-secondary)',
-                          padding: '6px 14px', borderRadius: '8px',
-                        }}>
-                          Connect via {platform.via}
-                        </span>
+                        // Instagram — auto via Facebook
+                        connected ? (
+                          <span style={{ fontSize: '0.78rem', color: '#16a34a', background: '#16a34a15', padding: '6px 14px', borderRadius: '8px', border: '1px solid #16a34a30' }}>
+                            ✓ Connected
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', background: 'var(--bg-secondary)', padding: '6px 14px', borderRadius: '8px' }}>
+                            Via {platform.via}
+                          </span>
+                        )
+                      ) : connected ? (
+                        <button
+                          onClick={() => handleDisconnect(platform.id)}
+                          disabled={!!disconnecting}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: '6px',
+                            padding: '7px 16px', borderRadius: '8px',
+                            border: '1px solid #dc262630', background: '#dc262610',
+                            color: '#dc2626', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500,
+                            opacity: disconnecting === platform.id ? 0.6 : 1,
+                          }}
+                        >
+                          {disconnecting === platform.id
+                            ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} />
+                            : <LogOut size={13} />}
+                          Disconnect
+                        </button>
                       ) : (
                         <button
                           onClick={() => handleConnect(platform.oauthPath!)}
+                          disabled={connecting === platform.oauthPath}
                           style={{
-                            display: 'flex', alignItems: 'center', gap: '6px',
-                            padding: '8px 20px', borderRadius: '8px', border: `1px solid ${platform.color}`,
-                            background: `${platform.color}12`, color: platform.color, cursor: 'pointer',
-                            fontSize: '0.85rem', fontWeight: '600',
+                            display: 'flex', alignItems: 'center', gap: '8px',
+                            padding: '8px 20px', borderRadius: '8px',
+                            border: `1px solid ${platform.color}`,
+                            background: `${platform.color}12`, color: platform.color,
+                            cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600,
                             transition: 'all 0.2s',
+                            opacity: connecting === platform.oauthPath ? 0.7 : 1,
                           }}
-                          onMouseOver={e => (e.currentTarget.style.background = `${platform.color}22`)}
-                          onMouseOut={e  => (e.currentTarget.style.background = `${platform.color}12`)}
                         >
-                          <PlatformIcon size={14} />
-                          Connect
+                          {connecting === platform.oauthPath
+                            ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Connecting...</>
+                            : <><Icon size={14} /> Connect</>}
                         </button>
                       )}
                     </div>
@@ -321,84 +318,141 @@ export default function SettingsPage() {
               })}
             </div>
           </div>
+
+          {/* ══════════════════════════════════════════════════════════════ */}
+          {/*  SECTION 2 — Ad Accounts                                       */}
+          {/* ══════════════════════════════════════════════════════════════ */}
+          <div className="card">
+            <div className="card-header">
+              <h2>Ad Account Connections</h2>
+              <div className="card-icon" style={{ background: '#f59e0b18', color: '#f59e0b' }}>
+                <Zap size={18} />
+              </div>
+            </div>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '20px' }}>
+              Ad accounts are linked to your campaigns in the Ads Manager.
+              Meta Ads and LinkedIn Ads connect automatically when you connect social accounts above.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+              {AD_PLATFORMS.map((platform, idx) => {
+                const connected = getAdAccount(platform.id);
+                const Icon = platform.icon;
+                const isLast = idx === AD_PLATFORMS.length - 1;
+
+                return (
+                  <div key={platform.id} style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '16px 4px',
+                    borderBottom: isLast ? 'none' : '1px solid var(--border)',
+                  }}>
+                    {/* Left: Icon + Info */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                      <div style={{
+                        width: '44px', height: '44px', borderRadius: '12px',
+                        background: `${platform.color}18`, border: `1px solid ${platform.color}30`,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                      }}>
+                        {Icon
+                          ? <Icon size={22} style={{ color: platform.color }} />
+                          : <span style={{ color: platform.color, fontWeight: 800, fontSize: '0.65rem', letterSpacing: '0.5px' }}>G ADS</span>
+                        }
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: '0.93rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          {platform.label}
+                          {platform.auto && (
+                            <span style={{ fontSize: '0.68rem', background: '#6366f115', color: '#6366f1', padding: '2px 8px', borderRadius: '20px', fontWeight: 500 }}>
+                              Auto
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: '0.8rem', marginTop: '2px' }}>
+                          {connected ? (
+                            <span style={{ color: '#16a34a', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <CheckCircle size={12} /> {connected.accountName}
+                            </span>
+                          ) : (
+                            <span style={{ color: 'var(--text-muted)' }}>{platform.description}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right: Status / Button */}
+                    <div style={{ flexShrink: 0 }}>
+                      {connected ? (
+                        <span style={{
+                          fontSize: '0.8rem', color: '#16a34a', background: '#16a34a15',
+                          padding: '7px 16px', borderRadius: '8px', border: '1px solid #16a34a30',
+                          display: 'flex', alignItems: 'center', gap: '5px',
+                        }}>
+                          <CheckCircle size={13} /> Connected
+                        </span>
+                      ) : platform.auto ? (
+                        // Auto-connect platforms — show which social account to connect first
+                        <div style={{ textAlign: 'right' }}>
+                          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', background: 'var(--bg-secondary)', padding: '6px 14px', borderRadius: '8px', display: 'block', marginBottom: '4px' }}>
+                            Auto via {platform.via}
+                          </span>
+                          {!getSocialAccount(platform.via!) && (
+                            <button
+                              onClick={() => handleConnect(platform.via!)}
+                              style={{
+                                fontSize: '0.75rem', color: platform.color,
+                                background: `${platform.color}10`, border: `1px solid ${platform.color}30`,
+                                padding: '5px 12px', borderRadius: '6px', cursor: 'pointer',
+                              }}
+                            >
+                              → Connect {platform.via} first
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        // Google Ads — needs its own OAuth
+                        <button
+                          onClick={() => handleConnect(platform.oauthPath!)}
+                          disabled={connecting === platform.oauthPath}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: '8px',
+                            padding: '8px 20px', borderRadius: '8px',
+                            border: `1px solid ${platform.color}`,
+                            background: `${platform.color}12`, color: platform.color,
+                            cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600,
+                            transition: 'all 0.2s',
+                            opacity: connecting === platform.oauthPath ? 0.7 : 1,
+                          }}
+                        >
+                          {connecting === platform.oauthPath
+                            ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Connecting...</>
+                            : <><RefreshCw size={14} /> Connect via OAuth</>
+                          }
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Info banner */}
+            <div style={{
+              marginTop: '20px', padding: '14px 16px', borderRadius: '10px',
+              background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+              fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.6,
+              display: 'flex', gap: '10px', alignItems: 'flex-start'
+            }}>
+              <AlertCircle size={16} style={{ color: '#f59e0b', flexShrink: 0, marginTop: '1px' }} />
+              <span>
+                <strong style={{ color: 'var(--text-main)' }}>How it works:</strong>{' '}
+                When you click "Connect" on Facebook or LinkedIn above, the OAuth flow automatically saves your <strong>social account</strong> (for posting) <strong>and</strong> your <strong>ad account</strong> (for campaigns) at the same time. Google Ads requires a separate OAuth connection using your Google Ads Manager credentials.
+              </span>
+            </div>
+          </div>
         </>
       )}
 
-      {/* ── Ad Accounts ── */}
-      <div className="card">
-        <div className="card-header">
-          <h2>Ad Account Integrations</h2>
-          <div className="card-icon"><LinkIcon size={20} /></div>
-        </div>
-        <p style={{ color: 'var(--text-muted)', marginBottom: '20px', fontSize: '0.9rem' }}>
-          Connect ad accounts to create and manage campaigns directly from the CRM. Note: Meta Ads and LinkedIn Ads connect automatically when you connect their respective Pages/Profiles above.
-        </p>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
-          {AD_PLATFORMS.map((platform, idx) => {
-            const connected = getConnectedAdAccount(platform.id);
-            const AdIcon = platform.icon;
-            const isLast = idx === AD_PLATFORMS.length - 1;
-
-            return (
-              <div key={platform.id} style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '18px 0',
-                borderBottom: isLast ? 'none' : '1px solid var(--border)',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  <div style={{
-                    width: '44px', height: '44px', borderRadius: '12px',
-                    background: `${platform.color}18`, border: `1px solid ${platform.color}30`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    {AdIcon ? <AdIcon size={22} style={{ color: platform.color }} /> : (
-                      <span style={{ color: platform.color, fontWeight: '700', fontSize: '0.7rem' }}>G ADS</span>
-                    )}
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: '600', fontSize: '0.95rem', color: 'var(--text-main)' }}>
-                      {platform.label}
-                    </div>
-                    {connected ? (
-                      <div style={{ fontSize: '0.82rem', color: '#16a34a', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
-                        <CheckCircle size={13} />
-                        Connected: {connected.accountName}
-                      </div>
-                    ) : (
-                      <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                        Not connected
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {connected ? (
-                  <span style={{
-                    fontSize: '0.8rem', color: '#16a34a', background: '#16a34a18',
-                    padding: '6px 14px', borderRadius: '8px', border: '1px solid #16a34a30',
-                  }}>
-                    ✓ Connected
-                  </span>
-                ) : (
-                  <button
-                    style={{
-                      padding: '8px 20px', borderRadius: '8px', border: `1px solid ${platform.color}`,
-                      background: `${platform.color}12`, color: platform.color, cursor: 'pointer',
-                      fontSize: '0.85rem', fontWeight: '600',
-                    }}
-                    onClick={() => handleConnectAd(platform.id)}
-                  >
-                    Connect
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <style jsx global>{`
+      <style>{`
         @keyframes slideIn {
           from { opacity: 0; transform: translateX(40px); }
           to   { opacity: 1; transform: translateX(0); }
