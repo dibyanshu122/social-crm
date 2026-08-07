@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { UserCheck, Download, Search, Plus, Filter, Mail, Phone, Calendar, CheckCircle2, Clock, X, Loader2 } from 'lucide-react';
-import { fetchAPI } from '@/lib/apiClient';
+import { fetchAPI, getBackendUrl } from '@/lib/apiClient';
+import { supabase } from '@/lib/supabase';
 
 export default function LeadsPage() {
   const [leads, setLeads] = useState<any[]>([]);
